@@ -1,0 +1,4 @@
+[console_scrips]
+qsurface = qsurface.__main__:main
+qsurface-getblossomv = qsurface.decoders.mwpm:get_blossomv
+
