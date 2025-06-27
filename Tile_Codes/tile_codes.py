@@ -1,6 +1,7 @@
 from panqec.codes import StabilizerCode
 from panqec.gui import GUI
 
+
 class TileCode(StabilizerCode):
     dimension = 2
 
