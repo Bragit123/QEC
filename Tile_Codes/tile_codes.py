@@ -2,7 +2,7 @@ from panqec.codes import StabilizerCode
 from panqec.gui import GUI
 
 
-class TileCode(StabilizerCode):
+class TileCodes(StabilizerCode):
     dimension = 2
 
     @property
@@ -45,53 +45,102 @@ class TileCode(StabilizerCode):
         Lx, Ly = self.size
         B = 3
         
-        # Red dots at the bottom
-        for x in range(2*(B-1), 2*Lx, 2):
-            for y in range(0, 2*(B-1), 2):
-                coordinates.append((x, y))
+        # # Red dots at the bottom
+        # for x in range(2*(B-1), 2*Lx, 2):
+        #     for y in range(0, 2*(B-1), 2):
+        #         coordinates.append((x, y))
         
-        # Red dots at the top
-        for x in range(2*(B-1), 2*Lx, 2):
-            for y in range(2*Ly, 2*(Ly+B-1), 2):
-                coordinates.append((x, y))
+        # # Red dots at the top
+        # for x in range(2*(B-1), 2*Lx, 2):
+        #     for y in range(2*Ly, 2*(Ly+B-1), 2):
+        #         coordinates.append((x, y))
         
-        # Blue and black dots
-        for x in range(0, 2*(Lx+B-1), 2):
-            for y in range(2*(B-1), 2*Ly, 2):
+        # # Blue and black dots
+        # for x in range(0, 2*(Lx+B-1), 2):
+        #     for y in range(2*(B-1), 2*Ly, 2):
+        #         coordinates.append((x, y))
+        
+        # X errors (red/black dots)
+        for x in range(2*(B-1), 2*Lx, 2):
+            for y in range(0, 2*(Ly+B-1), 2):
+                coordinates.append((x, y))
+
+        # Z errors (blue/black dots, but placed on faces)
+        for x in range(1, 2*(Lx+B-1), 2):
+            for y in range(2*(B-1)+1, 2*Ly, 2):
                 coordinates.append((x, y))
         
         return coordinates
 
     def stabilizer_type(self, location):
-        return "vertex"
+        x, y = location
+        if (x % 2 == 0) and (y % 2 == 0):
+            return "vertex"
+        elif (x % 2 == 1) and (y % 2 == 1):
+            return "face"
+        else:
+            raise ValueError("stabilizer_type() must return either 'vertex' or 'face'")
 
     def get_stabilizer(self, location):
         if self.stabilizer_type(location) == "vertex":
+            pauli = "X"
+        elif self.stabilizer_type(location) == "face":
             pauli = "Z"
         else:
-            pauli = "X"
+            raise ValueError("stabilizer_type() must return either 'vertex' or 'face'")
         
         x, y = location
 
         # delta specifies the positions of the qubits involved in the stabilizer
         # relative to the stabilizer position
         if self.stabilizer_type(location) == "vertex":
-            # Z type
+            # X type
             delta = [
-                (3, 0),
-                (5, 0),
-                (0, 1),
-                (0, 3),
-                (1, 4),
-                (4, 5)
+                (1, 0),
+                (4, 1),
+                (5, 2),
+                (5, 4),
+                (0, 5),
+                (2, 5)
             ]
+            # delta = [
+            #     (0, -1),
+            #     (3, 0),
+            #     (4, 1),
+            #     (4, 3),
+            #     (-1, 4),
+            #     (1, 4)
+            # ]
+            # delta = [
+            #     (1-1, 0-1),
+            #     (4-1, 1-1),
+            #     (5-1, 2-1),
+            #     (5-1, 4-1),
+            #     (0-1, 5-1),
+            #     (2-1, 5-1)
+            # ]
         else:
-            delta = []
+            # Z type
+            # delta = [
+            #     (3, 0),
+            #     (5, 0),
+            #     (0, 1),
+            #     (0, 3),
+            #     (1, 4),
+            #     (4, 5)
+            # ]
+            delta = [
+                (2, -1),
+                (4, -1),
+                (-1, 0),
+                (-1, 2),
+                (0, 3),
+                (3, 4)
+            ]
         
         B = 3
         operator = dict()
         for d in delta:
-            Lx, Ly = self.size
             qubit_location = (x + d[0], y + d[1])
 
             if self.is_qubit(qubit_location):
@@ -134,17 +183,27 @@ class TileCode(StabilizerCode):
         return logicals
     
     def stabilizer_representation(self, location, rotated_picture=False):
-        return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        # return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        res_dict = super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        # if self.stabilizer_type(location) == "vertex":
+        #     return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        if self.stabilizer_type(location) == "face":
+            x, y = location
+            print(location, type(location))
+            location = (x-1, y-1)
+            res_dict["location"] = location
+            # return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        return res_dict
     
     def qubit_representation(self, location, rotated_picture=False):
         return super().qubit_representation(location, rotated_picture, json_file="tile_code.json")
 
 
 gui = GUI()
-gui.add_code(TileCode, "Tile Code")
+gui.add_code(TileCodes, "Tile Code")
 gui.run(port=5000)
 
-# code = TileCode(12)
+# code = TileCodes(12)
 
 # for coord in code.get_qubit_coordinates():
 #     print(coord, code.qubit_axis(coord))
