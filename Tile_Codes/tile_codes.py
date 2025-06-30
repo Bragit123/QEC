@@ -45,21 +45,6 @@ class TileCodes(StabilizerCode):
         Lx, Ly = self.size
         B = 3
         
-        # # Red dots at the bottom
-        # for x in range(2*(B-1), 2*Lx, 2):
-        #     for y in range(0, 2*(B-1), 2):
-        #         coordinates.append((x, y))
-        
-        # # Red dots at the top
-        # for x in range(2*(B-1), 2*Lx, 2):
-        #     for y in range(2*Ly, 2*(Ly+B-1), 2):
-        #         coordinates.append((x, y))
-        
-        # # Blue and black dots
-        # for x in range(0, 2*(Lx+B-1), 2):
-        #     for y in range(2*(B-1), 2*Ly, 2):
-        #         coordinates.append((x, y))
-        
         # X errors (red/black dots)
         for x in range(2*(B-1), 2*Lx, 2):
             for y in range(0, 2*(Ly+B-1), 2):
@@ -103,32 +88,10 @@ class TileCodes(StabilizerCode):
                 (0, 5),
                 (2, 5)
             ]
-            # delta = [
-            #     (0, -1),
-            #     (3, 0),
-            #     (4, 1),
-            #     (4, 3),
-            #     (-1, 4),
-            #     (1, 4)
-            # ]
-            # delta = [
-            #     (1-1, 0-1),
-            #     (4-1, 1-1),
-            #     (5-1, 2-1),
-            #     (5-1, 4-1),
-            #     (0-1, 5-1),
-            #     (2-1, 5-1)
-            # ]
         else:
             # Z type
-            # delta = [
-            #     (3, 0),
-            #     (5, 0),
-            #     (0, 1),
-            #     (0, 3),
-            #     (1, 4),
-            #     (4, 5)
-            # ]
+            # Note: The stabilizer is defined on the face. Thus the delta gets an extra
+            # minus one in both the x- and y-coordinates compared to the X stabilizer.
             delta = [
                 (2, -1),
                 (4, -1),
@@ -182,21 +145,20 @@ class TileCodes(StabilizerCode):
 
         return logicals
     
-    def stabilizer_representation(self, location, rotated_picture=False):
-        # return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
-        res_dict = super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
-        # if self.stabilizer_type(location) == "vertex":
-        #     return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
-        if self.stabilizer_type(location) == "face":
-            x, y = location
-            print(location, type(location))
-            location = (x-1, y-1)
-            res_dict["location"] = location
-            # return super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
-        return res_dict
-    
     def qubit_representation(self, location, rotated_picture=False):
         return super().qubit_representation(location, rotated_picture, json_file="tile_code.json")
+    
+    def stabilizer_representation(self, location, rotated_picture=False):
+        res_dict = super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        if self.stabilizer_type(location) == "face":
+            x, y = location
+            location = [x-1, y-1]
+            res_dict["location"] = location
+        else:
+            x, y = location
+            location = [x, y, 1]
+            res_dict["location"] = location
+        return res_dict
 
 
 gui = GUI()
@@ -204,18 +166,4 @@ gui.add_code(TileCodes, "Tile Code")
 gui.run(port=5000)
 
 # code = TileCodes(12)
-
-# for coord in code.get_qubit_coordinates():
-#     print(coord, code.qubit_axis(coord))
-
-# print()
-# for coord in code.get_stabilizer_coordinates():
-#     print(coord)
-
-# print(code.get_qubit_coordinates())
-# print()
-# print(code.get_stabilizer_coordinates())
-
-# print(code.get_logicals_x())
-# print()
-# print(code.get_logicals_z())
+# print(code.colormap)
