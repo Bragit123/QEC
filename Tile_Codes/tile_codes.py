@@ -161,9 +161,28 @@ class TileCodes(StabilizerCode):
         return res_dict
 
 
-gui = GUI()
-gui.add_code(TileCodes, "Tile Code")
-gui.run(port=5000)
+# gui = GUI()
+# gui.add_code(TileCodes, "Tile Code")
+# gui.run(port=5000)
 
-# code = TileCodes(12)
-# print(code.colormap)
+code = TileCodes(12)
+
+import numpy as np
+from panqec.error_models import PauliErrorModel
+error_model = PauliErrorModel(0.5, 0.0, 0.5)
+errors = error_model.generate(code, 0.1)
+
+n_err = len(errors)
+n = n_err // 2
+x_err = errors[:n]
+z_err = errors[n:]
+
+log_x = np.zeros(n_err)
+qubit_coords = code.get_qubit_coordinates()
+for ind, coord in enumerate(qubit_coords):
+    if coord[1] == 4:
+        print(f"X: {ind}: {coord}")
+        log_x[ind] = 1
+
+print(code.in_codespace(log_x))
+print(code.is_logical_error(log_x))
