@@ -165,7 +165,7 @@ class MyToric3DCode(StabilizerCode):
             for y in range(0, 2*Ly, 2):
                 operator[(x, y, 1)] = 'Z'
         logicals.append(operator)
-
+        
         return logicals
         
     def get_deformation(self, location, deformation_name, deformation_axis='y'):
@@ -211,6 +211,36 @@ class MyToric3DCode(StabilizerCode):
 
         return representation
 
-gui = GUI()
-gui.add_code(MyToric3DCode, 'My Toric 3D')
-gui.run(port=5000)
+# gui = GUI()
+# gui.add_code(MyToric3DCode, 'My Toric 3D')
+# gui.run(port=5000)
+
+import numpy as np
+from tqdm.notebook import tqdm
+
+from panqec.codes import Toric2DCode
+from panqec.decoders import BeliefPropagationOSDDecoder
+from panqec.error_models import PauliErrorModel
+from panqec.simulation import DirectSimulation, BatchSimulation
+from panqec.analysis import Analysis
+
+error_model = PauliErrorModel(1/3, 1/3, 1/3)
+
+p_vals = np.linspace(0.01, 0.1, 10).tolist()
+L_vals = [4, 8, 12]
+
+batch_sim = BatchSimulation("test_output.json")
+
+for L in L_vals:
+    # code = MyToric3DCode(L)
+    code = MyToric3DCode(L)
+    for p in p_vals:
+        decoder = BeliefPropagationOSDDecoder(code, error_model, p)
+        dir_sim = DirectSimulation(code, error_model, decoder, p)
+        batch_sim.append(dir_sim)
+
+n_trials = 100
+batch_sim.run(n_trials, progress=tqdm)
+
+analysis = Analysis("test_output.json")
+analysis.plot_thresholds(pdf="myToric3D_thresh.pdf")

@@ -1,9 +1,30 @@
+from typing import List
 from panqec.codes import StabilizerCode
 from panqec.gui import GUI
 
 
 class TileCodes(StabilizerCode):
     dimension = 2
+
+    # def __init__(L_x, L_y=None, L_z=None, B: int = 3, x_tile: List = None):
+    #     """ tile = list of coordinates for 'delta' in get_stabilizer """
+    #     super().__init__(L_x, L_y, L_z)
+        
+    #     delta_X = [
+    #         (1,0),
+    #         (4,1),
+    #         (5,2),
+    #         (5,4),
+    #         (0,5),
+    #         (2,5),
+    #     ]
+
+    #     delta_Z = []
+    #     for i in range(len(delta_X)):
+    #         x = delta_X[i][0]
+    #         y = delta_X[i][1]
+    #         delta_Z.append((2*(B-1)-x, 2*(B-1)-y))
+            
 
     @property
     def label(self):
@@ -165,24 +186,52 @@ class TileCodes(StabilizerCode):
 # gui.add_code(TileCodes, "Tile Code")
 # gui.run(port=5000)
 
-code = TileCodes(12)
+# code = TileCodes(12)
+
+# import numpy as np
+# from panqec.error_models import PauliErrorModel
+# error_model = PauliErrorModel(0.5, 0.0, 0.5)
+# errors = error_model.generate(code, 0.1)
+
+# n_err = len(errors)
+# n = n_err // 2
+# x_err = errors[:n]
+# z_err = errors[n:]
+
+# log_x = np.zeros(n_err)
+# qubit_coords = code.get_qubit_coordinates()
+# for ind, coord in enumerate(qubit_coords):
+#     if coord[1] == 4:
+#         print(f"X: {ind}: {coord}")
+#         log_x[ind] = 1
+
+# print(code.in_codespace(log_x))
+# print(code.is_logical_error(log_x))
 
 import numpy as np
+from tqdm.notebook import tqdm
+
+from panqec.decoders import BeliefPropagationOSDDecoder
 from panqec.error_models import PauliErrorModel
-error_model = PauliErrorModel(0.5, 0.0, 0.5)
-errors = error_model.generate(code, 0.1)
+from panqec.simulation import DirectSimulation, BatchSimulation
+from panqec.analysis import Analysis
 
-n_err = len(errors)
-n = n_err // 2
-x_err = errors[:n]
-z_err = errors[n:]
+error_model = PauliErrorModel(1/3, 1/3, 1/3)
 
-log_x = np.zeros(n_err)
-qubit_coords = code.get_qubit_coordinates()
-for ind, coord in enumerate(qubit_coords):
-    if coord[1] == 4:
-        print(f"X: {ind}: {coord}")
-        log_x[ind] = 1
+p_vals = np.linspace(0.01, 0.3, 10).tolist()
+L_vals = [8, 12, 16, 18]
 
-print(code.in_codespace(log_x))
-print(code.is_logical_error(log_x))
+batch_sim = BatchSimulation("test_output.json")
+
+for L in L_vals:
+    code = TileCodes(L)
+    for p in p_vals:
+        decoder = BeliefPropagationOSDDecoder(code, error_model, p)
+        dir_sim = DirectSimulation(code, error_model, decoder, p)
+        batch_sim.append(dir_sim)
+
+n_trials = 100
+batch_sim.run(n_trials, progress=tqdm)
+
+analysis = Analysis("test_output.json")
+analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
