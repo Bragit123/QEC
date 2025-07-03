@@ -182,9 +182,53 @@ class TileCodes(StabilizerCode):
         return res_dict
 
 
-gui = GUI()
-gui.add_code(TileCodes, "Tile Code")
-gui.run(port=5000)
+import numpy as np
+from bposd.css import css_code
+
+L = 12
+B = 3
+dB = B-1 # Number of "extra" stabilizers on each side
+L_small = L - dB # Length of the short side of red/blue dots
+L_big = L + dB # Length of the long side of red/blue dots
+n_stabilizers = L_small*L_big # Number of X (or Z) stabilizers
+
+ham_mat = np.load("tile_hamming_arr.npy")
+Hx = ham_mat[:n_stabilizers, :]
+Hz = ham_mat[n_stabilizers:, :]
+
+code_bposd = css_code(Hx, Hz)
+Lx = code_bposd.lx
+Lz = code_bposd.lz
+
+def ham_ind_to_panqec_coords(ind):
+    is_vertical = False
+    if ind >= L*L:
+        is_vertical = True
+        ind = ind - L*L
+    
+    x = ind % L
+    y = ind // L
+
+# print(ham_mat.shape)
+code = TileCodes(6)
+
+# for coord in code.get_qubit_coordinates():
+#     print(coord)
+# for coord in code.get_stabilizer_coordinates():
+#     print(coord)
+
+
+
+
+
+
+
+
+# print(np.argwhere(Lx == 1))
+
+# gui = GUI()
+# gui.add_code(TileCodes, "Tile Code")
+# gui.run(port=5000)
 
 # code = TileCodes(12)
 
