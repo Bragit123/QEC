@@ -1,6 +1,7 @@
-from typing import List
+import numpy as np
 from panqec.codes import StabilizerCode
 from panqec.gui import GUI
+from bposd.css import css_code
 
 
 class TileCodes(StabilizerCode):
@@ -133,37 +134,41 @@ class TileCodes(StabilizerCode):
         return operator
 
     def get_logicals_x(self):
-        Lx, Ly = self.size
+        ham_mat = np.load("tile_hamming_arr.npy")
+        n_stabilizers_X = self.n_stabilizers // 2
+        Hx = ham_mat[:n_stabilizers_X, :]
+        Hz = ham_mat[n_stabilizers_X:, :]
+        bposd_code = css_code(Hx, Hz)
+        Lx = bposd_code.lx
+
         logicals = []
-        B = 3
-
-        operator = dict()
-        for x in range(2*(B-1)+1, 2*(Lx+B-1), 2):
-            operator[(x, 2*(B-1))] = "X"
-        logicals.append(operator)
+        for i in range(Lx.shape[0]):
+            operator = dict()
+            indices = np.argwhere(Lx[i,:] == 1)[:,1]
+            for ind in indices:
+                coord = self.get_qubit_coordinates()[ind]
+                operator[coord] = "X"
+            logicals.append(operator)
         
-        operator = dict()
-        for y in range(2*(B-1)+1, 2*(Ly+B-1), 2):
-            operator[(2*(B-1), y)] = "X"
-        logicals.append(operator)
-
         return logicals
 
     def get_logicals_z(self):
-        Lx, Ly = self.size
+        ham_mat = np.load("tile_hamming_arr.npy")
+        n_stabilizers_X = self.n_stabilizers // 2
+        Hx = ham_mat[:n_stabilizers_X, :]
+        Hz = ham_mat[n_stabilizers_X:, :]
+        bposd_code = css_code(Hx, Hz)
+        Lz = bposd_code.lz
+
         logicals = []
-        B = 3
-
-        operator = dict()
-        for x in range(2*(B-1), 2*(Lx+B-1), 2):
-            operator[(x, 2*(B-1)+1)] = "Z"
-        logicals.append(operator)
+        for i in range(Lz.shape[0]):
+            operator = dict()
+            indices = np.argwhere(Lz[i,:] == 1)[:,1]
+            for ind in indices:
+                coord = self.get_qubit_coordinates()[ind]
+                operator[coord] = "Z"
+            logicals.append(operator)
         
-        operator = dict()
-        for y in range(2*(B-1), 2*(Ly+B-1), 2):
-            operator[(2*(B-1)+1, y)] = "Z"
-        logicals.append(operator)
-
         return logicals
     
     def qubit_representation(self, location, rotated_picture=False):
@@ -180,55 +185,14 @@ class TileCodes(StabilizerCode):
             location = [x, y, 1]
             res_dict["location"] = location
         return res_dict
-
-
-import numpy as np
-from bposd.css import css_code
-
-L = 12
-B = 3
-dB = B-1 # Number of "extra" stabilizers on each side
-L_small = L - dB # Length of the short side of red/blue dots
-L_big = L + dB # Length of the long side of red/blue dots
-n_stabilizers = L_small*L_big # Number of X (or Z) stabilizers
-
-ham_mat = np.load("tile_hamming_arr.npy")
-Hx = ham_mat[:n_stabilizers, :]
-Hz = ham_mat[n_stabilizers:, :]
-
-code_bposd = css_code(Hx, Hz)
-Lx = code_bposd.lx
-Lz = code_bposd.lz
-
-def ham_ind_to_panqec_coords(ind):
-    is_vertical = False
-    if ind >= L*L:
-        is_vertical = True
-        ind = ind - L*L
     
-    x = ind % L
-    y = ind // L
-
-# print(ham_mat.shape)
-code = TileCodes(6)
-
-# for coord in code.get_qubit_coordinates():
-#     print(coord)
-# for coord in code.get_stabilizer_coordinates():
-#     print(coord)
+    def _ham_ind_to_panqec_coords(ind):
+        ham_mat = np.load
 
 
-
-
-
-
-
-
-# print(np.argwhere(Lx == 1))
-
-# gui = GUI()
-# gui.add_code(TileCodes, "Tile Code")
-# gui.run(port=5000)
+gui = GUI()
+gui.add_code(TileCodes, "Tile Code")
+gui.run(port=5000)
 
 # code = TileCodes(12)
 
