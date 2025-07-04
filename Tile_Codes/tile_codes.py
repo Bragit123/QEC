@@ -284,40 +284,132 @@ class TileCodes(StabilizerCode):
 # print(code.in_codespace(log_x))
 # print(code.is_logical_error(log_x))
 
-import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
-from panqec.decoders import BeliefPropagationOSDDecoder
-from panqec.error_models import PauliErrorModel
-from panqec.simulation import DirectSimulation, BatchSimulation
-from panqec.analysis import Analysis
+# import matplotlib.pyplot as plt
+# from tqdm.notebook import tqdm
+# from panqec.decoders import BeliefPropagationOSDDecoder
+# from panqec.error_models import PauliErrorModel
+# from panqec.simulation import DirectSimulation, BatchSimulation
+# from panqec.analysis import Analysis
 
-error_model = PauliErrorModel(1/3, 1/3, 1/3)
+# error_model = PauliErrorModel(1/3, 1/3, 1/3)
 
-p_vals = np.linspace(0.1, 0.6, 15).tolist()
-L_vals = [8, 12, 16]
+# p_vals = np.linspace(0.1, 0.6, 15).tolist()
+# L_vals = [8, 12, 16]
 
-batch_sim = BatchSimulation("sim_output_tile_codes.json")
+# batch_sim = BatchSimulation("sim_output_tile_codes.json")
 
-for L in L_vals:
-    code = TileCodes(L)
-    for p in p_vals:
-        decoder = BeliefPropagationOSDDecoder(code, error_model, p)
-        dir_sim = DirectSimulation(code, error_model, decoder, p)
-        batch_sim.append(dir_sim)
+# for L in L_vals:
+#     code = TileCodes(L)
+#     for p in p_vals:
+#         decoder = BeliefPropagationOSDDecoder(code, error_model, p)
+#         dir_sim = DirectSimulation(code, error_model, decoder, p)
+#         batch_sim.append(dir_sim)
 
-n_trials = 1000
-batch_sim.run(n_trials, progress=tqdm)
+# n_trials = 1000
+# batch_sim.run(n_trials, progress=tqdm)
 
-analysis = Analysis("sim_output_tile_codes.json")
+# analysis = Analysis("sim_output_tile_codes.json")
 
-fig, ax = plt.subplots(ncols=3, figsize=(15, 5))
+# fig, ax = plt.subplots(ncols=3, figsize=(15, 5))
 
-plt.sca(ax[0])
-analysis.plot_thresholds()
-plt.sca(ax[1])
-analysis.plot_thresholds(sector='X')
-plt.sca(ax[2])
-analysis.plot_thresholds(sector='Z')
-fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
+# plt.sca(ax[0])
+# analysis.plot_thresholds()
+# plt.sca(ax[1])
+# analysis.plot_thresholds(sector='X')
+# plt.sca(ax[2])
+# analysis.plot_thresholds(sector='Z')
+# fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
 
 # analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
+
+from ldpc import BpDecoder
+from ldpc import BpOsdDecoder
+
+L = 6; B = 3; dB = B-1
+L_small = L-dB; L_big = L+dB
+
+n_qubits = 2*L*L
+n_stabilizers_X = L_small*L_big
+
+code = TileCodes(L)
+
+H = code._get_hamming_matrix()
+Hx = H[:n_stabilizers_X, :]
+Hz = H[n_stabilizers_X:, :]
+p = 0.1
+
+bp_osd_X = BpOsdDecoder(
+    Hx,
+    error_rate=p,
+    bp_method="product_sum",
+    max_iter=7,
+    schedule="serial",
+    osd_method="osd_cs",
+    osd_order=2
+)
+bp_osd_Z = BpOsdDecoder(
+    Hz,
+    error_rate=p,
+    bp_method="product_sum",
+    max_iter=7,
+    schedule="serial",
+    osd_method="osd_cs",
+    osd_order=2
+)
+
+error = np.random.binomial(1, p, 2*n_qubits)
+error_X = error[:n_qubits]
+error_Z = error[n_qubits:]
+
+syndrome_X = (Hx @ error_Z) % 2
+syndrome_Z = (Hz @ error_X) % 2
+syndrome = np.concatenate([syndrome_X, syndrome_Z])
+
+pan_syndrome = code.measure_syndrome(error)
+
+correction_Z = bp_osd_X.decode(syndrome_X)
+correction_X = bp_osd_Z.decode(syndrome_Z)
+correction = np.concatenate([correction_X, correction_Z])
+
+residual_error = (error + correction) % 2
+
+print(code.in_codespace(residual_error))
+
+
+# print(H.shape)
+# print(error.shape)
+# print(error_X.shape)
+# print(error_Z.shape)
+# print(syndrome.shape)
+# print(syndrome_X.shape)
+# print(syndrome_Z.shape)
+# print(correction.shape)
+# print(correction_X.shape)
+# print(correction_Z.shape)
+# print(residual_error_X.shape)
+# print(residual_error_Z.shape)
+
+# error_X = error[:n_qubits]
+# error_Z = error[n_qubits:]
+
+# syndrome_X = Hx @ error_X % 2
+# syndrome_Z = Hz @ error_Z % 2
+# syndrome = np.append(syndrome_X, syndrome_Z)
+
+# correction = bpd.decode(syndrome)
+# correction_X = bpd_X.decode(syndrome_X)
+# correction_Z = bpd_Z.decode(syndrome_Z)
+
+# print(correction)
+
+# residual_error_X = (correction_X + error_X) % 2
+# residual_error_Z = (correction_Z + error_Z) % 2
+
+# residual_error = np.append(residual_error_X, residual_error_Z)
+# residual_error = np.append(residual_error_Z, residual_error_X)
+
+# print(residual_error)
+# print(code.measure_syndrome(residual_error))
+# print(code.in_codespace(residual_error))
+# print(code.logical_errors(residual_error))
+# print(code.is_logical_error(residual_error))
