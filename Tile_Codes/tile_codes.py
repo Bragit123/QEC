@@ -258,9 +258,9 @@ class TileCodes(StabilizerCode):
         return ham_mat
 
 
-gui = GUI()
-gui.add_code(TileCodes, "Tile Code")
-gui.run(port=5000)
+# gui = GUI()
+# gui.add_code(TileCodes, "Tile Code")
+# gui.run(port=5000)
 
 # code = TileCodes(12)
 
@@ -284,30 +284,40 @@ gui.run(port=5000)
 # print(code.in_codespace(log_x))
 # print(code.is_logical_error(log_x))
 
-# import numpy as np
-# from tqdm.notebook import tqdm
+import matplotlib.pyplot as plt
+from tqdm.notebook import tqdm
+from panqec.decoders import BeliefPropagationOSDDecoder
+from panqec.error_models import PauliErrorModel
+from panqec.simulation import DirectSimulation, BatchSimulation
+from panqec.analysis import Analysis
 
-# from panqec.decoders import BeliefPropagationOSDDecoder
-# from panqec.error_models import PauliErrorModel
-# from panqec.simulation import DirectSimulation, BatchSimulation
-# from panqec.analysis import Analysis
+error_model = PauliErrorModel(1/3, 1/3, 1/3)
 
-# error_model = PauliErrorModel(1/3, 1/3, 1/3)
+p_vals = np.linspace(0.1, 0.6, 15).tolist()
+L_vals = [8, 12, 16]
 
-# p_vals = np.linspace(0.01, 0.3, 10).tolist()
-# L_vals = [8, 12, 16, 18]
+batch_sim = BatchSimulation("sim_output_tile_codes.json")
 
-# batch_sim = BatchSimulation("test_output.json")
+for L in L_vals:
+    code = TileCodes(L)
+    for p in p_vals:
+        decoder = BeliefPropagationOSDDecoder(code, error_model, p)
+        dir_sim = DirectSimulation(code, error_model, decoder, p)
+        batch_sim.append(dir_sim)
 
-# for L in L_vals:
-#     code = TileCodes(L)
-#     for p in p_vals:
-#         decoder = BeliefPropagationOSDDecoder(code, error_model, p)
-#         dir_sim = DirectSimulation(code, error_model, decoder, p)
-#         batch_sim.append(dir_sim)
+n_trials = 1000
+batch_sim.run(n_trials, progress=tqdm)
 
-# n_trials = 100
-# batch_sim.run(n_trials, progress=tqdm)
+analysis = Analysis("sim_output_tile_codes.json")
 
-# analysis = Analysis("test_output.json")
+fig, ax = plt.subplots(ncols=3, figsize=(15, 5))
+
+plt.sca(ax[0])
+analysis.plot_thresholds()
+plt.sca(ax[1])
+analysis.plot_thresholds(sector='X')
+plt.sca(ax[2])
+analysis.plot_thresholds(sector='Z')
+fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
+
 # analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
