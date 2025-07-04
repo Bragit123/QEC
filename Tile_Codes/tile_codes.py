@@ -134,7 +134,7 @@ class TileCodes(StabilizerCode):
         return operator
 
     def get_logicals_x(self):
-        ham_mat = np.load("tile_hamming_arr.npy")
+        ham_mat = self._get_hamming_matrix()
         n_stabilizers_X = self.n_stabilizers // 2
         Hx = ham_mat[:n_stabilizers_X, :]
         Hz = ham_mat[n_stabilizers_X:, :]
@@ -153,7 +153,7 @@ class TileCodes(StabilizerCode):
         return logicals
 
     def get_logicals_z(self):
-        ham_mat = np.load("tile_hamming_arr.npy")
+        ham_mat = self._get_hamming_matrix()
         n_stabilizers_X = self.n_stabilizers // 2
         Hx = ham_mat[:n_stabilizers_X, :]
         Hz = ham_mat[n_stabilizers_X:, :]
@@ -186,8 +186,76 @@ class TileCodes(StabilizerCode):
             res_dict["location"] = location
         return res_dict
     
-    def _ham_ind_to_panqec_coords(ind):
-        ham_mat = np.load
+    def _get_Z_tile(self, X_tile):
+        B = 3
+        dB = B-1 # Number of "extra" stabilizers on each side
+
+        Z_tile = np.zeros(X_tile.shape, dtype=int)
+        Z_tile[[0,1]] = (dB - X_tile)[[1,0]] # Index swapping since horizontal X errors give vertical Z errors and vice versa
+        return Z_tile
+
+    def _get_tile_indices(self, ind):
+        """
+        Input: Index of stabilizer (row in Hamming matrix, with X tiles first then Z tiles)
+        Output: List of indices of qubit errors (columns in Hamming matrix)
+        """
+        X_tile = np.array([
+            [[0,0],[2,1],[2,2]],
+            [[2,0],[0,2],[1,2]]
+        ], dtype=int)
+
+        L = self.L_x
+        B = 3
+        dB = B-1 # Number of "extra" stabilizers on each side
+
+        L_small = L - dB # Length of the short side of red/blue dots
+        L_big = L + dB # Length of the long side of red/blue dots
+
+        n_stabilizers_X = L_small*L_big # Number of X (or Z) stabilizers
+        if ind < n_stabilizers_X:
+            # X stabilizer
+            x = ind // L_big
+            y = ind % L_big - dB # Subtract dB to get coordinates relative to qubits
+            tile = X_tile
+        else:
+            # Z stabilizer
+            ind = ind - n_stabilizers_X
+            x = ind // L_small - dB # Subtract dB to get coordinates relative to qubits
+            y = ind % L_small
+            tile = self._get_Z_tile(X_tile)
+
+        indices = []
+        for is_vert, delta_i in enumerate(tile):
+            for d in delta_i:
+                dx, dy = (d[0], d[1])
+                qx, qy = (x + dx, y + dy)
+                valid_x = qx >= 0 and qx < L
+                valid_y = qy >= 0 and qy < L
+                is_qubit = valid_x and valid_y
+                if is_qubit:
+                    ind = qx*L + qy + L*L*is_vert # Add L^2 if the qubits are vertical
+                    indices.append(ind)
+
+        indices = np.array(indices)
+        return indices
+    
+    def _get_hamming_matrix(self):
+        L = self.L_x
+        B = 3
+        dB = B-1 # Number of "extra" stabilizers on each side
+
+        L_small = L - dB # Length of the short side of red/blue dots
+        L_big = L + dB # Length of the long side of red/blue dots
+
+        n_qubits = 2*L*L
+        n_stabilizers = 2*L_small*L_big # Number of X (or Z) stabilizers
+        ham_mat = np.zeros((n_stabilizers, n_qubits), dtype=int)
+        
+        for i in range(n_stabilizers):
+            indices = self._get_tile_indices(i)
+            ham_mat[i,indices] = 1
+        
+        return ham_mat
 
 
 gui = GUI()
