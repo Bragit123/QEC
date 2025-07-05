@@ -322,8 +322,31 @@ class TileCodes(StabilizerCode):
 
 # analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
 
-from ldpc import BpDecoder
+
 from ldpc import BpOsdDecoder
+
+def generate_errors(n_qubits, p, w_X, w_Z):
+    p_X = 2*p*w_X
+    p_Z = 2*p*w_Z
+    
+    error_X = np.random.binomial(1, p_X, n_qubits)
+    error_Z = np.random.binomial(1, p_Z, n_qubits)
+    error = np.concatenate([error_X, error_Z])
+
+    return error
+
+
+# import matplotlib.pyplot as plt
+# batch_arr = np.arange(N)
+# fig, ax = plt.subplots(1, 3)
+# ax[0].plot(batch_arr, err_mean_X)
+# ax[1].plot(batch_arr, err_mean_Z)
+# ax[2].plot(batch_arr, err_mean)
+# fig.savefig("prob_err_test.pdf")
+
+
+
+
 
 L = 6; B = 3; dB = B-1
 L_small = L-dB; L_big = L+dB
@@ -357,59 +380,47 @@ bp_osd_Z = BpOsdDecoder(
     osd_order=2
 )
 
-error = np.random.binomial(1, p, 2*n_qubits)
-error_X = error[:n_qubits]
-error_Z = error[n_qubits:]
+epochs = 100
+batches = 100
 
-syndrome_X = (Hx @ error_Z) % 2
-syndrome_Z = (Hz @ error_X) % 2
-syndrome = np.concatenate([syndrome_X, syndrome_Z])
+codespace_arr = np.zeros(epochs)
+logical_err_arr = np.zeros(epochs)
 
-pan_syndrome = code.measure_syndrome(error)
+for e in range(epochs):
+    codespace_batch_arr = np.zeros(batches)
+    logical_err_batch_arr = np.zeros(batches)
+    for i in range(batches):
+        error = np.random.binomial(1, p, 2*n_qubits)
+        error_X = error[:n_qubits]
+        error_Z = error[n_qubits:]
 
-correction_Z = bp_osd_X.decode(syndrome_X)
-correction_X = bp_osd_Z.decode(syndrome_Z)
-correction = np.concatenate([correction_X, correction_Z])
+        error_X = np.random.binomial(1, p, n_qubits)
+        error_Z = np.random.binomial(1, p, n_qubits)
+        error = np.concatenate([error_X, error_Z])
 
-residual_error = (error + correction) % 2
+        syndrome_X = (Hx @ error_Z) % 2
+        syndrome_Z = (Hz @ error_X) % 2
+        syndrome = np.concatenate([syndrome_X, syndrome_Z])
 
-print(code.in_codespace(residual_error))
+        pan_syndrome = code.measure_syndrome(error)
 
+        correction_Z = bp_osd_X.decode(syndrome_X)
+        correction_X = bp_osd_Z.decode(syndrome_Z)
+        correction = np.concatenate([correction_X, correction_Z])
 
-# print(H.shape)
-# print(error.shape)
-# print(error_X.shape)
-# print(error_Z.shape)
-# print(syndrome.shape)
-# print(syndrome_X.shape)
-# print(syndrome_Z.shape)
-# print(correction.shape)
-# print(correction_X.shape)
-# print(correction_Z.shape)
-# print(residual_error_X.shape)
-# print(residual_error_Z.shape)
+        residual_error = (error + correction) % 2
 
-# error_X = error[:n_qubits]
-# error_Z = error[n_qubits:]
+        in_codespace = code.in_codespace(residual_error)
+        logical_err = code.is_logical_error(residual_error)
 
-# syndrome_X = Hx @ error_X % 2
-# syndrome_Z = Hz @ error_Z % 2
-# syndrome = np.append(syndrome_X, syndrome_Z)
+        codespace_batch_arr[i] = in_codespace
+        logical_err_batch_arr[i] = logical_err
 
-# correction = bpd.decode(syndrome)
-# correction_X = bpd_X.decode(syndrome_X)
-# correction_Z = bpd_Z.decode(syndrome_Z)
+    codespace_arr[e] = np.mean(codespace_batch_arr)
+    logical_err_arr[e] = np.mean(logical_err_batch_arr)
 
-# print(correction)
+assert np.all(codespace_arr == 1)
 
-# residual_error_X = (correction_X + error_X) % 2
-# residual_error_Z = (correction_Z + error_Z) % 2
-
-# residual_error = np.append(residual_error_X, residual_error_Z)
-# residual_error = np.append(residual_error_Z, residual_error_X)
-
-# print(residual_error)
-# print(code.measure_syndrome(residual_error))
-# print(code.in_codespace(residual_error))
-# print(code.logical_errors(residual_error))
-# print(code.is_logical_error(residual_error))
+import matplotlib.pyplot as plt
+plt.hist(logical_err_arr)
+plt.savefig("mean_logical_err.pdf")
