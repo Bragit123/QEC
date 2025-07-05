@@ -322,9 +322,6 @@ class TileCodes(StabilizerCode):
 
 # analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
 
-
-from ldpc import BpOsdDecoder
-
 def generate_errors(n_qubits, p, w_X, w_Z):
     p_X = 2*p*w_X
     p_Z = 2*p*w_Z
@@ -335,20 +332,9 @@ def generate_errors(n_qubits, p, w_X, w_Z):
 
     return error
 
+from ldpc import BpOsdDecoder
 
-# import matplotlib.pyplot as plt
-# batch_arr = np.arange(N)
-# fig, ax = plt.subplots(1, 3)
-# ax[0].plot(batch_arr, err_mean_X)
-# ax[1].plot(batch_arr, err_mean_Z)
-# ax[2].plot(batch_arr, err_mean)
-# fig.savefig("prob_err_test.pdf")
-
-
-
-
-
-L = 6; B = 3; dB = B-1
+L = 12; B = 3; dB = B-1
 L_small = L-dB; L_big = L+dB
 
 n_qubits = 2*L*L
