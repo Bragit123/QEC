@@ -38,6 +38,21 @@
 import stim
 import numpy as np
 
+def plot_circuit(circ, circ_type):
+    import webbrowser
+    import os
+    import time 
+    # Can plot diagram of the circuit
+    diagram = circ.diagram(circ_type)
+    svg_text = str(diagram)  # _str_ gives you the SVG file contents :contentReference[oaicite:0]{index=0}
+    # Write it out to an .svg file
+    with open("circuit_timeline.svg", "w") as f:
+        f.write(svg_text)
+    webbrowser.open("circuit_timeline.svg")
+    time.sleep(0.2)
+    os.remove("circuit_timeline.svg")
+    return None
+
 L = 3
 n_qubits = 2*L*L
 n_X_stabilizers = L*L
@@ -50,6 +65,29 @@ def get_coord(ind):
     y = ind % L
     return (x, y)
 
+def stab_qubits(ind: int, type: str):
+    """
+    Find qubits of a stabilizer.
+    
+    type = 0 (1) if vertex (plaquette)
+    """
+    ################################# FORTSETT HER! LEGG INN MULIGHET FOR Å
+    ################################# SPESIFISERE VERTEX/PLAQUETTE, OG BRUK
+    ################################# FUNKSJONEN INNI ADD_STABILIZER-FUNKSJONENE
+    x, y = get_coord(ind)
+    if type == 0:
+        # Vertex
+        qxs = np.array([(x-1)%L, x, x, x]) # Find qubit x-coordinates
+        qys = np.array([y, y, (y-1)%L, y]) # Find qubit y-coordinates
+    elif type == 1:
+        # Plaquette
+        qxs = np.array([x, x, x, (x+1)%L]) # Find qubit x-coordinates
+        qys = np.array([y, (y+1)%L, y, y]) # Find qubit y-coordinates
+    
+    qubits = qxs*L + qys # Find qubit indices
+    qubits[2:] = qubits[2:] + L*L # Vertical qubit indices are shifted by L^2
+    return qubits
+
 def add_stabilizer(ind, circ):
     if ind < n_X_stabilizers:
         add_X_vertex(ind, circ)
@@ -59,12 +97,14 @@ def add_stabilizer(ind, circ):
 
 def add_X_vertex(ind, circ):
     sq = X_ind_start + ind # Stabilizer index
-    x, y = get_coord(ind)
-    # x, y = (ind // L, ind % L) # Get coordinate of vertex-index
-    qxs = np.array([(x-1)%L, x, x, x]) # Find qubit x-coordinates
-    qys = np.array([y, y, (y-1)%L, y]) # Find qubit y-coordinates
-    qubits = qxs*L + qys # Find qubit indices
-    qubits[2:] = qubits[2:] + L*L # Vertical qubit indices are shifted by L^2
+    # x, y = get_coord(ind)
+    # # x, y = (ind // L, ind % L) # Get coordinate of vertex-index
+    # qxs = np.array([(x-1)%L, x, x, x]) # Find qubit x-coordinates
+    # qys = np.array([y, y, (y-1)%L, y]) # Find qubit y-coordinates
+    # qubits = qxs*L + qys # Find qubit indices
+    # qubits[2:] = qubits[2:] + L*L # Vertical qubit indices are shifted by L^2
+
+    qubits = stab_qubits(ind, 0)
     q0, q1, q2, q3 = qubits
     # circ.append("H", q0)
     
@@ -80,12 +120,13 @@ def add_X_vertex(ind, circ):
 
 def add_Z_plaquette(ind, circ):
     sq = Z_ind_start + ind
-    x, y = get_coord(ind)
-    # x, y = (ind // L, ind % L) # Get coordinate of plaquette-index
-    qxs = np.array([x, x, x, (x+1)%L]) # Find qubit x-coordinates
-    qys = np.array([y, (y+1)%L, y, y]) # Find qubit y-coordinates
-    qubits = qxs*L + qys # Find qubit indices
-    qubits[2:] = qubits[2:] + L*L # Vertical qubit indices are shifted by L^2
+    # x, y = get_coord(ind)
+    # # x, y = (ind // L, ind % L) # Get coordinate of plaquette-index
+    # qxs = np.array([x, x, x, (x+1)%L]) # Find qubit x-coordinates
+    # qys = np.array([y, (y+1)%L, y, y]) # Find qubit y-coordinates
+    # qubits = qxs*L + qys # Find qubit indices
+    # qubits[2:] = qubits[2:] + L*L # Vertical qubit indices are shifted by L^2
+    qubits = stab_qubits(ind, 1)
     q0, q1, q2, q3 = qubits
 
     # circ.append("H", sq)
@@ -122,17 +163,18 @@ def add_Z_plaquette(ind, circ):
 
 circuit = stim.Circuit() # Initialize circuit
 
-circuit.append("X_ERROR", [4, 5, 13, 16], 0.5)
+# circuit.append("X_ERROR", [4, 5, 13, 16], 0.1)
 
 # circuit.append("X", 4)
-# circuit.append("Z_ERROR", 4, 0.5) # Add error
+# circuit.append("Z_ERROR", 4, 0.0) # Add error
 
 ## Add stabilizers
 for i in range(n_qubits):
     add_stabilizer(i, circuit)
 
-# pauli_str = stim.PauliString("X4*X5*X13*X16")
-pauli_str = stim.PauliString("Z1*Z4*Z12*Z13")
+pauli_str = stim.PauliString("X4*X5*X13*X16")
+# pauli_str = stim.PauliString("X4*X13*X5*X16")
+# pauli_str = stim.PauliString("Z1*Z4*Z12*Z13")
 circuit.append("MPP", [pauli_str])
 
 # ## Add measurements of stabilizers
@@ -141,10 +183,11 @@ circuit.append("MPP", [pauli_str])
 
 
 # print(circuit.diagram())
-samples = circuit.compile_sampler().sample(shots=100)
+plot_circuit(circuit, "timeline-svg")
+samples = circuit.compile_sampler().sample(shots=1000)
 print(samples.shape)
 # print(samples)
-print(np.sum(samples))
+print(np.mean(samples))
 # print(np.argwhere(samples != 0))
 
 
