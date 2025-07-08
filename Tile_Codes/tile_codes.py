@@ -25,6 +25,8 @@ class TileCodes(StabilizerCode):
     #         x = delta_X[i][0]
     #         y = delta_X[i][1]
     #         delta_Z.append((2*(B-1)-x, 2*(B-1)-y))
+    # def __init__(L_x, L_y=None, L_z=None, is_css=None):
+    #     super().__init__(L_x, L_y, L_z, is_css=is_css)
             
 
     @property
@@ -110,6 +112,14 @@ class TileCodes(StabilizerCode):
                 (0, 5),
                 (2, 5)
             ]
+            # delta = [
+            #     (1, 0),
+            #     (4, 1),
+            #     (5, 2),
+            #     (5, 4),
+            #     (0, 5),
+            #     (2, 5)
+            # ]
         else:
             # Z type
             # Note: The stabilizer is defined on the face. Thus the delta gets an extra
@@ -257,17 +267,69 @@ class TileCodes(StabilizerCode):
         
         return ham_mat
 
+# L = 6
+# code = TileCodes(L)
+
+# H_self = code._get_hamming_matrix()
+# Hx_self = H_self[:H_self.shape[0]//2,:]
+# Hz_self = H_self[H_self.shape[0]//2:,:]
+# Hx = code.Hx
+# Hz = code.Hz
+
+# print(H_self.shape)
+# print(Hx.shape)
+# print(Hz.shape)
+# print(np.all(Hx_self==Hx))
+# print(np.all(Hz_self==Hz))
+# print(code.get_logicals_z())
+# print(code.logicals_z.shape)
+# print(np.where(code.logicals_z != 0))
 
 # gui = GUI()
 # gui.add_code(TileCodes, "Tile Code")
 # gui.run(port=5000)
 
-# code = TileCodes(12)
+code = TileCodes(12)
 
-# import numpy as np
-# from panqec.error_models import PauliErrorModel
-# error_model = PauliErrorModel(0.5, 0.0, 0.5)
-# errors = error_model.generate(code, 0.1)
+import numpy as np
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+from panqec.error_models import PauliErrorModel
+from panqec.decoders import BeliefPropagationOSDDecoder
+from panqec.simulation import DirectSimulation, BatchSimulation
+from panqec.analysis import Analysis
+
+error_model = PauliErrorModel(0.5, 0.0, 0.5)
+
+p_vals = np.linspace(1e-5, 0.3, 20)
+L_vals = [8, 12, 16]
+
+batch_sim = BatchSimulation("sim_output_tile_codes.json")
+for L in L_vals:
+    code = TileCodes(L)
+    for p in p_vals:
+        p = float(p)
+        decoder = BeliefPropagationOSDDecoder(code, error_model, p)
+        dir_sim = DirectSimulation(code, error_model, decoder, p)
+        batch_sim.append(dir_sim)
+
+# n_trials = 1000
+n_trials = 500
+batch_sim.run(n_trials, progress=tqdm)
+
+analysis = Analysis("sim_output_tile_codes.json")
+
+fig, ax = plt.subplots(ncols=3, figsize=(15, 5))
+
+plt.sca(ax[0])
+analysis.plot_thresholds()
+plt.sca(ax[1])
+analysis.plot_thresholds(sector='X')
+plt.sca(ax[2])
+analysis.plot_thresholds(sector='Z')
+fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
+
+
 
 # n_err = len(errors)
 # n = n_err // 2
@@ -322,91 +384,91 @@ class TileCodes(StabilizerCode):
 
 # analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
 
-def generate_errors(n_qubits, p, w_X, w_Z):
-    p_X = 2*p*w_X
-    p_Z = 2*p*w_Z
+# def generate_errors(n_qubits, p, w_X, w_Z):
+#     p_X = 2*p*w_X
+#     p_Z = 2*p*w_Z
     
-    error_X = np.random.binomial(1, p_X, n_qubits)
-    error_Z = np.random.binomial(1, p_Z, n_qubits)
-    error = np.concatenate([error_X, error_Z])
+#     error_X = np.random.binomial(1, p_X, n_qubits)
+#     error_Z = np.random.binomial(1, p_Z, n_qubits)
+#     error = np.concatenate([error_X, error_Z])
 
-    return error
+#     return error
 
-from ldpc import BpOsdDecoder
+# from ldpc import BpOsdDecoder
 
-L = 12; B = 3; dB = B-1
-L_small = L-dB; L_big = L+dB
+# L = 12; B = 3; dB = B-1
+# L_small = L-dB; L_big = L+dB
 
-n_qubits = 2*L*L
-n_stabilizers_X = L_small*L_big
+# n_qubits = 2*L*L
+# n_stabilizers_X = L_small*L_big
 
-code = TileCodes(L)
+# code = TileCodes(L)
 
-H = code._get_hamming_matrix()
-Hx = H[:n_stabilizers_X, :]
-Hz = H[n_stabilizers_X:, :]
-p = 0.1
+# H = code._get_hamming_matrix()
+# Hx = H[:n_stabilizers_X, :]
+# Hz = H[n_stabilizers_X:, :]
+# p = 0.1
 
-bp_osd_X = BpOsdDecoder(
-    Hx,
-    error_rate=p,
-    bp_method="product_sum",
-    max_iter=7,
-    schedule="serial",
-    osd_method="osd_cs",
-    osd_order=2
-)
-bp_osd_Z = BpOsdDecoder(
-    Hz,
-    error_rate=p,
-    bp_method="product_sum",
-    max_iter=7,
-    schedule="serial",
-    osd_method="osd_cs",
-    osd_order=2
-)
+# bp_osd_X = BpOsdDecoder(
+#     Hx,
+#     error_rate=p,
+#     bp_method="product_sum",
+#     max_iter=7,
+#     schedule="serial",
+#     osd_method="osd_cs",
+#     osd_order=2
+# )
+# bp_osd_Z = BpOsdDecoder(
+#     Hz,
+#     error_rate=p,
+#     bp_method="product_sum",
+#     max_iter=7,
+#     schedule="serial",
+#     osd_method="osd_cs",
+#     osd_order=2
+# )
 
-epochs = 100
-batches = 100
+# epochs = 100
+# batches = 100
 
-codespace_arr = np.zeros(epochs)
-logical_err_arr = np.zeros(epochs)
+# codespace_arr = np.zeros(epochs)
+# logical_err_arr = np.zeros(epochs)
 
-for e in range(epochs):
-    codespace_batch_arr = np.zeros(batches)
-    logical_err_batch_arr = np.zeros(batches)
-    for i in range(batches):
-        error = np.random.binomial(1, p, 2*n_qubits)
-        error_X = error[:n_qubits]
-        error_Z = error[n_qubits:]
+# for e in range(epochs):
+#     codespace_batch_arr = np.zeros(batches)
+#     logical_err_batch_arr = np.zeros(batches)
+#     for i in range(batches):
+#         error = np.random.binomial(1, p, 2*n_qubits)
+#         error_X = error[:n_qubits]
+#         error_Z = error[n_qubits:]
 
-        error_X = np.random.binomial(1, p, n_qubits)
-        error_Z = np.random.binomial(1, p, n_qubits)
-        error = np.concatenate([error_X, error_Z])
+#         error_X = np.random.binomial(1, p, n_qubits)
+#         error_Z = np.random.binomial(1, p, n_qubits)
+#         error = np.concatenate([error_X, error_Z])
 
-        syndrome_X = (Hx @ error_Z) % 2
-        syndrome_Z = (Hz @ error_X) % 2
-        syndrome = np.concatenate([syndrome_X, syndrome_Z])
+#         syndrome_X = (Hx @ error_Z) % 2
+#         syndrome_Z = (Hz @ error_X) % 2
+#         syndrome = np.concatenate([syndrome_X, syndrome_Z])
 
-        pan_syndrome = code.measure_syndrome(error)
+#         pan_syndrome = code.measure_syndrome(error)
 
-        correction_Z = bp_osd_X.decode(syndrome_X)
-        correction_X = bp_osd_Z.decode(syndrome_Z)
-        correction = np.concatenate([correction_X, correction_Z])
+#         correction_Z = bp_osd_X.decode(syndrome_X)
+#         correction_X = bp_osd_Z.decode(syndrome_Z)
+#         correction = np.concatenate([correction_X, correction_Z])
 
-        residual_error = (error + correction) % 2
+#         residual_error = (error + correction) % 2
 
-        in_codespace = code.in_codespace(residual_error)
-        logical_err = code.is_logical_error(residual_error)
+#         in_codespace = code.in_codespace(residual_error)
+#         logical_err = code.is_logical_error(residual_error)
 
-        codespace_batch_arr[i] = in_codespace
-        logical_err_batch_arr[i] = logical_err
+#         codespace_batch_arr[i] = in_codespace
+#         logical_err_batch_arr[i] = logical_err
 
-    codespace_arr[e] = np.mean(codespace_batch_arr)
-    logical_err_arr[e] = np.mean(logical_err_batch_arr)
+#     codespace_arr[e] = np.mean(codespace_batch_arr)
+#     logical_err_arr[e] = np.mean(logical_err_batch_arr)
 
-assert np.all(codespace_arr == 1)
+# assert np.all(codespace_arr == 1)
 
-import matplotlib.pyplot as plt
-plt.hist(logical_err_arr)
-plt.savefig("mean_logical_err.pdf")
+# import matplotlib.pyplot as plt
+# plt.hist(logical_err_arr)
+# plt.savefig("mean_logical_err.pdf")
