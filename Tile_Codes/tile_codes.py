@@ -299,9 +299,11 @@ from panqec.decoders import BeliefPropagationOSDDecoder
 from panqec.simulation import DirectSimulation, BatchSimulation
 from panqec.analysis import Analysis
 
-error_model = PauliErrorModel(0.5, 0.0, 0.5)
+E_X = 0.5; E_Y = 0.0; E_Z = 0.5
+error_model = PauliErrorModel(E_X, E_Y, E_Z)
 
-p_vals = np.linspace(1e-5, 0.3, 20)
+p_min = 1e-3; p_max = 0.3; n_p = 20
+p_vals = np.linspace(p_min, p_max, n_p)
 L_vals = [8, 12, 16]
 
 batch_sim = BatchSimulation("sim_output_tile_codes.json")
@@ -327,6 +329,13 @@ plt.sca(ax[1])
 analysis.plot_thresholds(sector='X')
 plt.sca(ax[2])
 analysis.plot_thresholds(sector='Z')
+
+PLOT_DIR = "Threshold_Plots/"
+error_text = f"error_{E_X}_{E_Y}_{E_Z}"
+p_text = f"p_{p_min}_{p_max}_{n_p}"
+trials_text = f"trials_{n_trials}"
+fig_name = f"{PLOT_DIR}thresholds_{error_text}__{p_text}__{trials_text}.pdf"
+fig.savefig(fig_name, bbox_inches="tight")
 fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
 
 
