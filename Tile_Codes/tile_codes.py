@@ -299,12 +299,15 @@ from panqec.decoders import BeliefPropagationOSDDecoder
 from panqec.simulation import DirectSimulation, BatchSimulation
 from panqec.analysis import Analysis
 
-E_X = 0.5; E_Y = 0.0; E_Z = 0.5
+# E_X = 0.5; E_Y = 0.0; E_Z = 0.5
+E_X = 1/3; E_Y = 1/3; E_Z = 1/3
 error_model = PauliErrorModel(E_X, E_Y, E_Z)
 
 p_min = 1e-3; p_max = 0.3; n_p = 20
 p_vals = np.linspace(p_min, p_max, n_p)
-L_vals = [8, 12, 16]
+L_vals = [8, 12, 16, 20]
+# n_trials = 1000
+n_trials = 500
 
 batch_sim = BatchSimulation("sim_output_tile_codes.json")
 for L in L_vals:
@@ -315,8 +318,6 @@ for L in L_vals:
         dir_sim = DirectSimulation(code, error_model, decoder, p)
         batch_sim.append(dir_sim)
 
-# n_trials = 1000
-n_trials = 500
 batch_sim.run(n_trials, progress=tqdm)
 
 analysis = Analysis("sim_output_tile_codes.json")
@@ -331,10 +332,13 @@ plt.sca(ax[2])
 analysis.plot_thresholds(sector='Z')
 
 PLOT_DIR = "Threshold_Plots/"
-error_text = f"error_{E_X}_{E_Y}_{E_Z}"
-p_text = f"p_{p_min}_{p_max}_{n_p}"
+L_text = f"L"
+for L in L_vals:
+    L_text = L_text + "_" + str(L)
+error_text = f"error_{E_X:.2}_{E_Y:.2}_{E_Z:.2}"
+p_text = f"p_{p_min:.2}_{p_max:.2}_{n_p}"
 trials_text = f"trials_{n_trials}"
-fig_name = f"{PLOT_DIR}thresholds_{error_text}__{p_text}__{trials_text}.pdf"
+fig_name = f"{PLOT_DIR}thresholds_{error_text}__{L_text}__{p_text}__{trials_text}.pdf"
 fig.savefig(fig_name, bbox_inches="tight")
 fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
 
