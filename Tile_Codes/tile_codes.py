@@ -100,10 +100,10 @@ class TileCodes(StabilizerCode):
         
         x, y = location
 
-        # delta specifies the positions of the qubits involved in the stabilizer
-        # relative to the stabilizer position
+        ## delta specifies the positions of the qubits involved in the stabilizer
+        ## relative to the stabilizer position
         if self.stabilizer_type(location) == "vertex":
-            # X type
+            ## X type
             delta = [
                 (1, 0),
                 (4, 1),
@@ -112,16 +112,8 @@ class TileCodes(StabilizerCode):
                 (0, 5),
                 (2, 5)
             ]
-            # delta = [
-            #     (1, 0),
-            #     (4, 1),
-            #     (5, 2),
-            #     (5, 4),
-            #     (0, 5),
-            #     (2, 5)
-            # ]
         else:
-            # Z type
+            ## Z type
             # Note: The stabilizer is defined on the face. Thus the delta gets an extra
             # minus one in both the x- and y-coordinates compared to the X stabilizer.
             delta = [
@@ -144,10 +136,8 @@ class TileCodes(StabilizerCode):
         return operator
 
     def get_logicals_x(self):
-        ham_mat = self._get_hamming_matrix()
-        n_stabilizers_X = self.n_stabilizers // 2
-        Hx = ham_mat[:n_stabilizers_X, :]
-        Hz = ham_mat[n_stabilizers_X:, :]
+        Hx = self.Hx
+        Hz = self.Hz
         bposd_code = css_code(Hx, Hz)
         Lx = bposd_code.lx
 
@@ -163,10 +153,8 @@ class TileCodes(StabilizerCode):
         return logicals
 
     def get_logicals_z(self):
-        ham_mat = self._get_hamming_matrix()
-        n_stabilizers_X = self.n_stabilizers // 2
-        Hx = ham_mat[:n_stabilizers_X, :]
-        Hz = ham_mat[n_stabilizers_X:, :]
+        Hx = self.Hx
+        Hz = self.Hz
         bposd_code = css_code(Hx, Hz)
         Lz = bposd_code.lz
 
@@ -195,293 +183,8 @@ class TileCodes(StabilizerCode):
             location = [x, y, 1]
             res_dict["location"] = location
         return res_dict
-    
-    def _get_Z_tile(self, X_tile):
-        B = 3
-        dB = B-1 # Number of "extra" stabilizers on each side
-
-        Z_tile = np.zeros(X_tile.shape, dtype=int)
-        Z_tile[[0,1]] = (dB - X_tile)[[1,0]] # Index swapping since horizontal X errors give vertical Z errors and vice versa
-        return Z_tile
-
-    def _get_tile_indices(self, ind):
-        """
-        Input: Index of stabilizer (row in Hamming matrix, with X tiles first then Z tiles)
-        Output: List of indices of qubit errors (columns in Hamming matrix)
-        """
-        X_tile = np.array([
-            [[0,0],[2,1],[2,2]],
-            [[2,0],[0,2],[1,2]]
-        ], dtype=int)
-
-        L = self.L_x
-        B = 3
-        dB = B-1 # Number of "extra" stabilizers on each side
-
-        L_small = L - dB # Length of the short side of red/blue dots
-        L_big = L + dB # Length of the long side of red/blue dots
-
-        n_stabilizers_X = L_small*L_big # Number of X (or Z) stabilizers
-        if ind < n_stabilizers_X:
-            # X stabilizer
-            x = ind // L_big
-            y = ind % L_big - dB # Subtract dB to get coordinates relative to qubits
-            tile = X_tile
-        else:
-            # Z stabilizer
-            ind = ind - n_stabilizers_X
-            x = ind // L_small - dB # Subtract dB to get coordinates relative to qubits
-            y = ind % L_small
-            tile = self._get_Z_tile(X_tile)
-
-        indices = []
-        for is_vert, delta_i in enumerate(tile):
-            for d in delta_i:
-                dx, dy = (d[0], d[1])
-                qx, qy = (x + dx, y + dy)
-                valid_x = qx >= 0 and qx < L
-                valid_y = qy >= 0 and qy < L
-                is_qubit = valid_x and valid_y
-                if is_qubit:
-                    ind = qx*L + qy + L*L*is_vert # Add L^2 if the qubits are vertical
-                    indices.append(ind)
-
-        indices = np.array(indices)
-        return indices
-    
-    def _get_hamming_matrix(self):
-        L = self.L_x
-        B = 3
-        dB = B-1 # Number of "extra" stabilizers on each side
-
-        L_small = L - dB # Length of the short side of red/blue dots
-        L_big = L + dB # Length of the long side of red/blue dots
-
-        n_qubits = 2*L*L
-        n_stabilizers = 2*L_small*L_big # Number of X (or Z) stabilizers
-        ham_mat = np.zeros((n_stabilizers, n_qubits), dtype=int)
-        
-        for i in range(n_stabilizers):
-            indices = self._get_tile_indices(i)
-            ham_mat[i,indices] = 1
-        
-        return ham_mat
-
-# L = 6
-# code = TileCodes(L)
-
-# H_self = code._get_hamming_matrix()
-# Hx_self = H_self[:H_self.shape[0]//2,:]
-# Hz_self = H_self[H_self.shape[0]//2:,:]
-# Hx = code.Hx
-# Hz = code.Hz
-
-# print(H_self.shape)
-# print(Hx.shape)
-# print(Hz.shape)
-# print(np.all(Hx_self==Hx))
-# print(np.all(Hz_self==Hz))
-# print(code.get_logicals_z())
-# print(code.logicals_z.shape)
-# print(np.where(code.logicals_z != 0))
-
-# gui = GUI()
-# gui.add_code(TileCodes, "Tile Code")
-# gui.run(port=5000)
-
-code = TileCodes(12)
-
-import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from panqec.error_models import PauliErrorModel
-from panqec.decoders import BeliefPropagationOSDDecoder
-from panqec.simulation import DirectSimulation, BatchSimulation
-from panqec.analysis import Analysis
-
-# E_X = 0.5; E_Y = 0.0; E_Z = 0.5
-E_X = 1/3; E_Y = 1/3; E_Z = 1/3
-error_model = PauliErrorModel(E_X, E_Y, E_Z)
-
-p_min = 1e-3; p_max = 0.3; n_p = 20
-p_vals = np.linspace(p_min, p_max, n_p)
-L_vals = [8, 12, 16, 20]
-# n_trials = 1000
-n_trials = 500
-
-batch_sim = BatchSimulation("sim_output_tile_codes.json")
-for L in L_vals:
-    code = TileCodes(L)
-    for p in p_vals:
-        p = float(p)
-        decoder = BeliefPropagationOSDDecoder(code, error_model, p)
-        dir_sim = DirectSimulation(code, error_model, decoder, p)
-        batch_sim.append(dir_sim)
-
-batch_sim.run(n_trials, progress=tqdm)
-
-analysis = Analysis("sim_output_tile_codes.json")
-
-fig, ax = plt.subplots(ncols=3, figsize=(15, 5))
-
-plt.sca(ax[0])
-analysis.plot_thresholds()
-plt.sca(ax[1])
-analysis.plot_thresholds(sector='X')
-plt.sca(ax[2])
-analysis.plot_thresholds(sector='Z')
-
-PLOT_DIR = "Threshold_Plots/"
-L_text = f"L"
-for L in L_vals:
-    L_text = L_text + "_" + str(L)
-error_text = f"error_{E_X:.2}_{E_Y:.2}_{E_Z:.2}"
-p_text = f"p_{p_min:.2}_{p_max:.2}_{n_p}"
-trials_text = f"trials_{n_trials}"
-fig_name = f"{PLOT_DIR}thresholds_{error_text}__{L_text}__{p_text}__{trials_text}.pdf"
-fig.savefig(fig_name, bbox_inches="tight")
-fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
 
 
-
-# n_err = len(errors)
-# n = n_err // 2
-# x_err = errors[:n]
-# z_err = errors[n:]
-
-# log_x = np.zeros(n_err)
-# qubit_coords = code.get_qubit_coordinates()
-# for ind, coord in enumerate(qubit_coords):
-#     if coord[1] == 4:
-#         print(f"X: {ind}: {coord}")
-#         log_x[ind] = 1
-
-# print(code.in_codespace(log_x))
-# print(code.is_logical_error(log_x))
-
-# import matplotlib.pyplot as plt
-# from tqdm.notebook import tqdm
-# from panqec.decoders import BeliefPropagationOSDDecoder
-# from panqec.error_models import PauliErrorModel
-# from panqec.simulation import DirectSimulation, BatchSimulation
-# from panqec.analysis import Analysis
-
-# error_model = PauliErrorModel(1/3, 1/3, 1/3)
-
-# p_vals = np.linspace(0.1, 0.6, 15).tolist()
-# L_vals = [8, 12, 16]
-
-# batch_sim = BatchSimulation("sim_output_tile_codes.json")
-
-# for L in L_vals:
-#     code = TileCodes(L)
-#     for p in p_vals:
-#         decoder = BeliefPropagationOSDDecoder(code, error_model, p)
-#         dir_sim = DirectSimulation(code, error_model, decoder, p)
-#         batch_sim.append(dir_sim)
-
-# n_trials = 1000
-# batch_sim.run(n_trials, progress=tqdm)
-
-# analysis = Analysis("sim_output_tile_codes.json")
-
-# fig, ax = plt.subplots(ncols=3, figsize=(15, 5))
-
-# plt.sca(ax[0])
-# analysis.plot_thresholds()
-# plt.sca(ax[1])
-# analysis.plot_thresholds(sector='X')
-# plt.sca(ax[2])
-# analysis.plot_thresholds(sector='Z')
-# fig.savefig("thresholds_tile_codes.pdf", bbox_inches="tight")
-
-# analysis.plot_thresholds(pdf="thresh_tile_codes.pdf")
-
-# def generate_errors(n_qubits, p, w_X, w_Z):
-#     p_X = 2*p*w_X
-#     p_Z = 2*p*w_Z
-    
-#     error_X = np.random.binomial(1, p_X, n_qubits)
-#     error_Z = np.random.binomial(1, p_Z, n_qubits)
-#     error = np.concatenate([error_X, error_Z])
-
-#     return error
-
-# from ldpc import BpOsdDecoder
-
-# L = 12; B = 3; dB = B-1
-# L_small = L-dB; L_big = L+dB
-
-# n_qubits = 2*L*L
-# n_stabilizers_X = L_small*L_big
-
-# code = TileCodes(L)
-
-# H = code._get_hamming_matrix()
-# Hx = H[:n_stabilizers_X, :]
-# Hz = H[n_stabilizers_X:, :]
-# p = 0.1
-
-# bp_osd_X = BpOsdDecoder(
-#     Hx,
-#     error_rate=p,
-#     bp_method="product_sum",
-#     max_iter=7,
-#     schedule="serial",
-#     osd_method="osd_cs",
-#     osd_order=2
-# )
-# bp_osd_Z = BpOsdDecoder(
-#     Hz,
-#     error_rate=p,
-#     bp_method="product_sum",
-#     max_iter=7,
-#     schedule="serial",
-#     osd_method="osd_cs",
-#     osd_order=2
-# )
-
-# epochs = 100
-# batches = 100
-
-# codespace_arr = np.zeros(epochs)
-# logical_err_arr = np.zeros(epochs)
-
-# for e in range(epochs):
-#     codespace_batch_arr = np.zeros(batches)
-#     logical_err_batch_arr = np.zeros(batches)
-#     for i in range(batches):
-#         error = np.random.binomial(1, p, 2*n_qubits)
-#         error_X = error[:n_qubits]
-#         error_Z = error[n_qubits:]
-
-#         error_X = np.random.binomial(1, p, n_qubits)
-#         error_Z = np.random.binomial(1, p, n_qubits)
-#         error = np.concatenate([error_X, error_Z])
-
-#         syndrome_X = (Hx @ error_Z) % 2
-#         syndrome_Z = (Hz @ error_X) % 2
-#         syndrome = np.concatenate([syndrome_X, syndrome_Z])
-
-#         pan_syndrome = code.measure_syndrome(error)
-
-#         correction_Z = bp_osd_X.decode(syndrome_X)
-#         correction_X = bp_osd_Z.decode(syndrome_Z)
-#         correction = np.concatenate([correction_X, correction_Z])
-
-#         residual_error = (error + correction) % 2
-
-#         in_codespace = code.in_codespace(residual_error)
-#         logical_err = code.is_logical_error(residual_error)
-
-#         codespace_batch_arr[i] = in_codespace
-#         logical_err_batch_arr[i] = logical_err
-
-#     codespace_arr[e] = np.mean(codespace_batch_arr)
-#     logical_err_arr[e] = np.mean(logical_err_batch_arr)
-
-# assert np.all(codespace_arr == 1)
-
-# import matplotlib.pyplot as plt
-# plt.hist(logical_err_arr)
-# plt.savefig("mean_logical_err.pdf")
+gui = GUI()
+gui.add_code(TileCodes, "Tile Code")
+gui.run(port=5000)
