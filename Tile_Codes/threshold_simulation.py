@@ -1,8 +1,9 @@
-from tile_codes import TileCodes
+import tile_codes as tc
 
 import numpy as np
 import matplotlib.pyplot as plt
 
+from typing import Type
 from tqdm import tqdm # Progress bar
 
 from panqec.error_models import PauliErrorModel
@@ -13,7 +14,7 @@ from panqec.analysis import Analysis
 OUTPUT_DIR = "Simulation_Outputs/" # Directory to store JSON files containing the output from simulations.
 PLOT_DIR = "Threshold_Plots/" # Directory to store threshold plots created from the simulations.
 
-def get_sim_name(sim_input: dict):
+def get_sim_name(Code: Type[tc.TileCode], sim_input: dict):
     """
     Returns a name that is used for the output-data and plot files, such as "thresholds_error_0.5_0.0_0.5__L_8_12_16_20__p_0.001_0.3_20__trials_1000".
 
@@ -26,6 +27,7 @@ def get_sim_name(sim_input: dict):
             - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
     """
     ## Extract and "stringify" the simulation parameters.
+    code_name = Code.__name__
     E_X = sim_input["E_X"]
     L_text = f"L"
     for L in sim_input["L_vals"]:
@@ -36,16 +38,18 @@ def get_sim_name(sim_input: dict):
     trials_text = f"trials_{sim_input["n_trials"]}"
 
     ## Combine parameter strings into one string.
-    sim_name = f"thresholds_{error_text}__{L_text}__{p_text}__{trials_text}"
+    sim_name = f"th_{code_name}__{error_text}__{L_text}__{p_text}__{trials_text}"
 
     return sim_name
 
 
-def run_threshold_simulation(sim_input: dict):
+def run_threshold_simulation(Code: Type[tc.TileCode], sim_input: dict):
     """
     Runs a threshold simulation, and stores it into a JSON file.
 
     ## Parameters:
+        - TileCodeClass = The Tile Code to run the simulation for. This must be a subclass
+            of the TileCode class.
         - sim_input = Dictionary of simulation parameters. Must include the following:
             - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
             - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
@@ -53,6 +57,11 @@ def run_threshold_simulation(sim_input: dict):
             - "L_vals" = List of code-sizes to consider.
             - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
     """
+    try:
+        assert issubclass(Code, tc.TileCode)
+    except:
+        raise TypeError("Code must be a subclass of the TileCode class.")
+    
     ## Extract input parameters
     E_X, E_Y, E_Z = (sim_input["E_X"], sim_input["E_Y"], sim_input["E_Z"])
     p_min = sim_input["p_min"]
@@ -72,7 +81,7 @@ def run_threshold_simulation(sim_input: dict):
     batch_sim = BatchSimulation(output_path)
 
     for L in L_vals:
-        code = TileCodes(L)
+        code = Code(L)
         for p in p_vals:
             p = float(p)
             decoder = BeliefPropagationOSDDecoder(code, error_model, p)
@@ -106,6 +115,7 @@ def analyze_and_plot_threshold(sim_name):
 
 
 ## Set simulation parameters
+code = tc.TileCode_B3_W6
 sim_input = {
     "E_X": 0.5,
     "E_Y": 0.0,
@@ -114,11 +124,11 @@ sim_input = {
     "p_max": 0.3,
     "n_p": 20,
     "L_vals": [8, 12, 16],
-    "n_trials": 2000
+    "n_trials": 500
 }
 
 ## Run and analyze simulation
-run_threshold_simulation(sim_input)
+run_threshold_simulation(code, sim_input)
 sim_name = get_sim_name(sim_input)
 analyze_and_plot_threshold(sim_name)
 
