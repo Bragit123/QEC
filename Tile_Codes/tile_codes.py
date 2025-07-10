@@ -1,40 +1,75 @@
 import numpy as np
+import json
+from abc import abstractmethod
 from panqec.codes import StabilizerCode
 from panqec.gui import GUI
 from bposd.css import css_code
 
 
+##### Abstract class #####
+
 class TileCodes(StabilizerCode):
+    """
+    Abstract class for Tile Codes, a way of constructing quantum codes presented by
+    Steffan, Choe, Breuckmann, Pereira and Eberhardt in the 2025 paper titled:
+    "Tile Codes: High-Efficiency Quantum Codes on a Lattice with Boundary"
+
+    https://arxiv.org/abs/2504.09171
+
+    ## Usage
+    The TileCodes class is abstract. In order to make a valid subclass you must include the
+    following properties:
+        - B = Dimension of the stabilizer tiles.
+        - delta_X = List of relative coordinates for the X-tile stabilizer.
+    """
     dimension = 2
 
-    # def __init__(L_x, L_y=None, L_z=None, B: int = 3, x_tile: List = None):
-    #     """ tile = list of coordinates for 'delta' in get_stabilizer """
-    #     super().__init__(L_x, L_y, L_z)
-        
-    #     delta_X = [
-    #         (1,0),
-    #         (4,1),
-    #         (5,2),
-    #         (5,4),
-    #         (0,5),
-    #         (2,5),
-    #     ]
+    @property
+    @abstractmethod
+    def B(self) -> int:
+        """ Dimension of the stabilizer tiles """
 
-    #     delta_Z = []
-    #     for i in range(len(delta_X)):
-    #         x = delta_X[i][0]
-    #         y = delta_X[i][1]
-    #         delta_Z.append((2*(B-1)-x, 2*(B-1)-y))
-    # def __init__(L_x, L_y=None, L_z=None, is_css=None):
-    #     super().__init__(L_x, L_y, L_z, is_css=is_css)
-            
+    @property
+    @abstractmethod
+    def delta_X(self) -> list[tuple[int]]:
+        """
+        List of relative coordinates for the X-tile stabilizer.
+        
+        Each coordinate specifies the position of a qubit involved in the
+        stabilizer, relative to the vertex where the stabilizer is defined.
+        """
+    
+    @property
+    def delta_Z(self) -> list[tuple[int]]:
+        """
+        List of relative coordinates for the Z-tile stabilizer.
+        
+        NOTE: The Z stabilizer is defined on the face, not the vertex. Thus
+        the delta gets an extra minus one in both the x- and y-coordinates
+        compared to the X stabilizer.
+        """
+        B = self.B
+        delta_X = self.delta_X
+
+        delta_Z = []
+        for i in range(len(delta_X)):
+            x = delta_X[i][0]
+            y = delta_X[i][1]
+            delta_Z.append((2*(B-1)-x, 2*(B-1)-y))
+        
+        return delta_Z
+
+    @property
+    def json_file(self) -> str:
+        """ Path to JSON file for GUI visualization. """
+        return "tile_codes.json"
 
     @property
     def label(self):
         return f"Tile Code {self.size[0]}x{self.size[1]}"
     
     def get_qubit_coordinates(self):
-        B = 3
+        B = self.B
         coordinates = []
         Lx, Ly = self.size
         
@@ -67,7 +102,7 @@ class TileCodes(StabilizerCode):
     def get_stabilizer_coordinates(self):
         coordinates = []
         Lx, Ly = self.size
-        B = 3
+        B = self.B
         
         # X errors (red/black dots)
         for x in range(2*(B-1), 2*Lx, 2):
@@ -100,32 +135,13 @@ class TileCodes(StabilizerCode):
         
         x, y = location
 
-        ## delta specifies the positions of the qubits involved in the stabilizer
-        ## relative to the stabilizer position
         if self.stabilizer_type(location) == "vertex":
             ## X type
-            delta = [
-                (1, 0),
-                (4, 1),
-                (5, 2),
-                (5, 4),
-                (0, 5),
-                (2, 5)
-            ]
+            delta = self.delta_X
         else:
             ## Z type
-            # Note: The stabilizer is defined on the face. Thus the delta gets an extra
-            # minus one in both the x- and y-coordinates compared to the X stabilizer.
-            delta = [
-                (2, -1),
-                (4, -1),
-                (-1, 0),
-                (-1, 2),
-                (0, 3),
-                (3, 4)
-            ]
+            delta = self.delta_Z
         
-        B = 3
         operator = dict()
         for d in delta:
             qubit_location = (x + d[0], y + d[1])
@@ -170,22 +186,96 @@ class TileCodes(StabilizerCode):
         return logicals
     
     def qubit_representation(self, location, rotated_picture=False):
-        return super().qubit_representation(location, rotated_picture, json_file="tile_code.json")
+        json_file = self.json_file
+        
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        code_name = "TileCodes"
+
+        picture = 'rotated' if rotated_picture else 'kitaev'
+
+        representation = data[code_name]['qubits'][picture]
+
+        representation['params']['axis'] = self.qubit_axis(location)
+        representation['location'] = location
+
+        for pauli in ['I', 'X', 'Y', 'Z']:
+            color_name = representation['color'][pauli]
+            representation['color'][pauli] = self.colormap[color_name]
+
+        return representation
     
     def stabilizer_representation(self, location, rotated_picture=False):
-        res_dict = super().stabilizer_representation(location, rotated_picture, json_file="tile_code.json")
+        json_file = self.json_file
+        stab_type = self.stabilizer_type(location)
+
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        code_name = "TileCodes"
+        picture = 'rotated' if rotated_picture else 'kitaev'
+
+        representation = data[code_name]['stabilizers'][picture][stab_type]
+        representation['type'] = stab_type
+        representation['location'] = location
+
+        for activation in ['activated', 'deactivated']:
+            color_name = representation['color'][activation]
+            representation['color'][activation] = self.colormap[color_name]
+
         if self.stabilizer_type(location) == "face":
             x, y = location
             location = [x-1, y-1]
-            res_dict["location"] = location
+            representation["location"] = location
         else:
             x, y = location
             location = [x, y, 1]
-            res_dict["location"] = location
-        return res_dict
+            representation["location"] = location
+        return representation
+
+
+
+##### Specific Tile Codes #####
+
+class TileCode_B3_1(TileCodes):
+    """
+    The Tile Code specified by the X- and Z-tiles in the first row of Table 1
+    in https://arxiv.org/abs/2504.09171
+    (the code labeled by [[288,8,12]]).
+    """
+    B = 3
+    delta_X = [
+        (1,0),
+        (4,1),
+        (5,2),
+        (5,4),
+        (0,5),
+        (2,5),
+    ]
+
+
+class TileCode_B4_1(TileCodes):
+    """
+    The Tile Code specified by the X- and Z-tiles in the third row of Table 1
+    in https://arxiv.org/abs/2504.09171
+    (the code labeled by [[288,18,13]]).
+    """
+    B = 4
+    delta_X = [
+        (1,0),
+        (7,0),
+        (2,1),
+        (0,3),
+        (2,3),
+        (5,4),
+        (1,6),
+        (6,7)
+    ]
 
 
 if __name__ == "__main__":
     gui = GUI()
-    gui.add_code(TileCodes, "Tile Code")
+    gui.add_code(TileCode_B3_1, "Tile Code B=3 (1)")
+    gui.add_code(TileCode_B4_1, "Tile Code B=4 (1)")
     gui.run(port=5000)

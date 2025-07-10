@@ -17,7 +17,7 @@ def get_sim_name(sim_input: dict):
     """
     Returns a name that is used for the output-data and plot files, such as "thresholds_error_0.5_0.0_0.5__L_8_12_16_20__p_0.001_0.3_20__trials_1000".
 
-    Parameters:
+    ## Parameters:
         - sim_input = Dictionary of simulation parameters. Must include the following:
             - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
             - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
@@ -45,7 +45,7 @@ def run_threshold_simulation(sim_input: dict):
     """
     Runs a threshold simulation, and stores it into a JSON file.
 
-    Parameters:
+    ## Parameters:
         - sim_input = Dictionary of simulation parameters. Must include the following:
             - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
             - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
@@ -85,7 +85,7 @@ def analyze_and_plot_threshold(sim_name):
     """
     Analyze output from a simulation, and create the threshold plots. The resulting plot is saved in the plot directory.
 
-    Parameters:
+    ## Parameters:
         sim_name: Name of output and plot file (not including folder or file type). Should be the same as acquired from get_sim_name().
     """
     sim_data_path = OUTPUT_DIR + sim_name + ".json" # Path to output data from simulation.
