@@ -5,10 +5,11 @@ from panqec.codes import StabilizerCode
 from panqec.gui import GUI
 from bposd.css import css_code
 
+type Coordinate = tuple[int]
 
 ##### Abstract class #####
 
-class TileCodes(StabilizerCode):
+class TileCode(StabilizerCode):
     """
     Abstract class for Tile Codes, a way of constructing quantum codes presented by
     Steffan, Choe, Breuckmann, Pereira and Eberhardt in the 2025 paper titled:
@@ -17,7 +18,7 @@ class TileCodes(StabilizerCode):
     https://arxiv.org/abs/2504.09171
 
     ## Usage
-    The TileCodes class is abstract. In order to make a valid subclass you must include the
+    The TileCode class is abstract. In order to make a valid subclass you must include the
     following properties:
         - B = Dimension of the stabilizer tiles.
         - delta_X = List of relative coordinates for the X-tile stabilizer.
@@ -31,7 +32,7 @@ class TileCodes(StabilizerCode):
 
     @property
     @abstractmethod
-    def delta_X(self) -> list[tuple[int]]:
+    def delta_X(self) -> list[Coordinate]:
         """
         List of relative coordinates for the X-tile stabilizer.
         
@@ -40,7 +41,7 @@ class TileCodes(StabilizerCode):
         """
     
     @property
-    def delta_Z(self) -> list[tuple[int]]:
+    def delta_Z(self) -> list[Coordinate]:
         """
         List of relative coordinates for the Z-tile stabilizer.
         
@@ -62,30 +63,35 @@ class TileCodes(StabilizerCode):
     @property
     def json_file(self) -> str:
         """ Path to JSON file for GUI visualization. """
-        return "tile_codes.json"
+        return "gui_config_tile_codes.json"
 
     @property
-    def label(self):
+    def label(self) -> str:
         return f"Tile Code {self.size[0]}x{self.size[1]}"
     
-    def get_qubit_coordinates(self):
+    def get_qubit_coordinates(self) -> list[Coordinate]:
+        """ Returns a list of the qubit coordinates. """
         B = self.B
-        coordinates = []
         Lx, Ly = self.size
+        coordinates = []
         
-        # Qubits oriented along x-axis
+        # Horizontal qubits
         for x in range(2*(B-1)+1, 2*(Lx+B-1), 2):
             for y in range(2*(B-1), 2*(Ly+B-1), 2):
                 coordinates.append((x, y))
 
-        # Qubits oriented along y-axis
+        # Vertical qubits
         for x in range(2*(B-1), 2*(Lx+B-1), 2):
             for y in range(2*(B-1)+1, 2*(Ly+B-1), 2):
                 coordinates.append((x, y))
 
         return coordinates
     
-    def qubit_axis(self, location):
+    def qubit_axis(self, location: Coordinate) -> str:
+        """
+        Returns the axis of alignment for a qubit.
+        "x" for horizontal qubits, and "y" for vertical qubits.
+        """
         x, y = location
 
         if (y % 2 == 0) and (not x % 2 == 0):
@@ -99,7 +105,8 @@ class TileCodes(StabilizerCode):
 
         return axis
     
-    def get_stabilizer_coordinates(self):
+    def get_stabilizer_coordinates(self) -> list[Coordinate]:
+        """ Returns a list of the qubit coordinates. """
         coordinates = []
         Lx, Ly = self.size
         B = self.B
@@ -116,7 +123,11 @@ class TileCodes(StabilizerCode):
         
         return coordinates
 
-    def stabilizer_type(self, location):
+    def stabilizer_type(self, location: Coordinate) -> str:
+        """
+        Returns the type of a stabilizer.
+        "vertex" for X-tiles, and "face" for Z-tiles.
+        """
         x, y = location
         if (x % 2 == 0) and (y % 2 == 0):
             return "vertex"
@@ -125,40 +136,44 @@ class TileCodes(StabilizerCode):
         else:
             raise ValueError("stabilizer_type() must return either 'vertex' or 'face'")
 
-    def get_stabilizer(self, location):
+    def get_stabilizer(self, location: Coordinate) -> dict[Coordinate, str]:
+        """
+        Returns a dictionary containing the Pauli operator as a string ("X" or "Z")
+        for all qubits in the stabilizer.
+        """
         if self.stabilizer_type(location) == "vertex":
+            ## X type
             pauli = "X"
+            delta = self.delta_X
         elif self.stabilizer_type(location) == "face":
+            ## Z type
             pauli = "Z"
+            delta = self.delta_Z
         else:
             raise ValueError("stabilizer_type() must return either 'vertex' or 'face'")
         
         x, y = location
-
-        if self.stabilizer_type(location) == "vertex":
-            ## X type
-            delta = self.delta_X
-        else:
-            ## Z type
-            delta = self.delta_Z
         
         operator = dict()
+        
         for d in delta:
-            qubit_location = (x + d[0], y + d[1])
+            qubit_location = (x + d[0], y + d[1]) # Get qubit coordinate from relative coordinate in delta
 
             if self.is_qubit(qubit_location):
-                operator[qubit_location] = pauli
+                operator[qubit_location] = pauli # Add qubit to stabilizer
         
         return operator
 
-    def get_logicals_x(self):
+    def get_logicals_x(self) -> list[dict[Coordinate, str]]:
+        """ Returns a list of all the logical X operators of the code. """
         Hx = self.Hx
         Hz = self.Hz
         bposd_code = css_code(Hx, Hz)
-        Lx = bposd_code.lx
+        Lx = bposd_code.lx # Compute the logical X operator.
 
         logicals = []
         for i in range(Lx.shape[0]):
+            ## Translate Hamming matrix indices to PanQEC coordinates for each operator
             operator = dict()
             indices = np.argwhere(Lx[i,:] == 1)[:,1]
             for ind in indices:
@@ -168,14 +183,16 @@ class TileCodes(StabilizerCode):
         
         return logicals
 
-    def get_logicals_z(self):
+    def get_logicals_z(self) -> list[dict[Coordinate, str]]:
+        """ Returns a list of all the logical Z operators of the code. """
         Hx = self.Hx
         Hz = self.Hz
         bposd_code = css_code(Hx, Hz)
-        Lz = bposd_code.lz
+        Lz = bposd_code.lz # Compute the logical Z operator.
 
         logicals = []
         for i in range(Lz.shape[0]):
+            ## Translate Hamming matrix indices to PanQEC coordinates for each operator
             operator = dict()
             indices = np.argwhere(Lz[i,:] == 1)[:,1]
             for ind in indices:
@@ -185,13 +202,18 @@ class TileCodes(StabilizerCode):
         
         return logicals
     
-    def qubit_representation(self, location, rotated_picture=False):
-        json_file = self.json_file
+    def qubit_representation(self, location: Coordinate, rotated_picture: bool = False) -> dict:
+        """
+        Finds how qubits are represented for the GUI visualization.
+        This method is mostly copied directly from PanQECs qubit_representation(),
+        but so all subclasses of TileCode can use the same JSON entry.
+        """
+        json_file = self.json_file # JSON file containing visualization parameters.
         
         with open(json_file, 'r') as f:
             data = json.load(f)
 
-        code_name = "TileCodes"
+        code_name = "TileCode" # Name of the code in the JSON file.
 
         picture = 'rotated' if rotated_picture else 'kitaev'
 
@@ -206,14 +228,20 @@ class TileCodes(StabilizerCode):
 
         return representation
     
-    def stabilizer_representation(self, location, rotated_picture=False):
-        json_file = self.json_file
+    def stabilizer_representation(self, location: Coordinate, rotated_picture=False) -> dict:
+        """
+        Finds how stabilizers are represented for the GUI visualization.
+        This method is mostly copied directly from PanQECs stabilizer_representation(),
+        but so all subclasses of TileCode can use the same JSON entry.
+        """
+        json_file = self.json_file # JSON file containing visualization parameters.
         stab_type = self.stabilizer_type(location)
 
         with open(json_file, 'r') as f:
             data = json.load(f)
 
-        code_name = "TileCodes"
+        code_name = "TileCode" # Name of the code in the JSON file.
+
         picture = 'rotated' if rotated_picture else 'kitaev'
 
         representation = data[code_name]['stabilizers'][picture][stab_type]
@@ -238,10 +266,26 @@ class TileCodes(StabilizerCode):
 
 ##### Specific Tile Codes #####
 
-class TileCode_B3_1(TileCodes):
+class TileCode_Planar(TileCode):
     """
-    The Tile Code specified by the X- and Z-tiles in the first row of Table 1
-    in https://arxiv.org/abs/2504.09171
+    The 2D Planar code in the language of Tile Codes.
+    The tiles are 2x2, and give the "regular" X-vertex and Z-plaquette as
+    familiar from the CSS toric or planar codes.
+    """
+    B = 2
+    delta_X = [
+        (2,1),
+        (1,2),
+        (3,2),
+        (2,3)
+    ]
+
+
+class TileCode_B3_W6(TileCode):
+    """
+    Tile Code with 3x3 tiles of weight 6.
+    Specifically, the code specified by the X- and Z-tiles in the first row of
+    Table 1 in https://arxiv.org/abs/2504.09171
     (the code labeled by [[288,8,12]]).
     """
     B = 3
@@ -254,11 +298,31 @@ class TileCode_B3_1(TileCodes):
         (2,5),
     ]
 
-
-class TileCode_B4_1(TileCodes):
+class TileCode_B3_W8(TileCode):
     """
-    The Tile Code specified by the X- and Z-tiles in the third row of Table 1
-    in https://arxiv.org/abs/2504.09171
+    Tile Code with 3x3 tiles of weight 8.
+    Specifically, the code specified by the X- and Z-tiles in the second row of
+    Table 1 in https://arxiv.org/abs/2504.09171
+    (the code labeled by [[288,8,14]]).
+    """
+    B = 3
+    delta_X = [
+        (1,0),
+        (5,0),
+        (0,1),
+        (1,2),
+        (2,3),
+        (1,4),
+        (0,5),
+        (4,5)
+    ]
+
+
+class TileCode_B4_W8(TileCode):
+    """
+    Tile Code with 4x4 tiles of weight 8.
+    Specifically, the code specified by the X- and Z-tiles in the third row of
+    Table 1 in https://arxiv.org/abs/2504.09171
     (the code labeled by [[288,18,13]]).
     """
     B = 4
@@ -274,8 +338,13 @@ class TileCode_B4_1(TileCodes):
     ]
 
 
+
+##### Run the GUI if __main__
+
 if __name__ == "__main__":
     gui = GUI()
-    gui.add_code(TileCode_B3_1, "Tile Code B=3 (1)")
-    gui.add_code(TileCode_B4_1, "Tile Code B=4 (1)")
+    gui.add_code(TileCode_Planar, "Tile Code: 'Planar'")
+    gui.add_code(TileCode_B3_W6, "Tile Code: B=3, W=6")
+    gui.add_code(TileCode_B3_W8, "Tile Code: B=3, W=8")
+    gui.add_code(TileCode_B4_W8, "Tile Code: B=4, W=8")
     gui.run(port=5000)

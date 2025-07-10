@@ -1,5 +1,5 @@
 {
-    "TileCodes": {
+    "TileCode": {
         "qubits": {
             "kitaev": {
                 "object": "cylinder",
