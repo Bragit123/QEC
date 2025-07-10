@@ -114,7 +114,7 @@ sim_input = {
     "p_max": 0.3,
     "n_p": 20,
     "L_vals": [8, 12, 16],
-    "n_trials": 500
+    "n_trials": 2000
 }
 
 ## Run and analyze simulation

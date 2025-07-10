@@ -185,6 +185,7 @@ class TileCodes(StabilizerCode):
         return res_dict
 
 
-gui = GUI()
-gui.add_code(TileCodes, "Tile Code")
-gui.run(port=5000)
+if __name__ == "__main__":
+    gui = GUI()
+    gui.add_code(TileCodes, "Tile Code")
+    gui.run(port=5000)
