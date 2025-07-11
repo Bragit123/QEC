@@ -60,7 +60,7 @@ def run_threshold_simulation(Code: Type[tc.TileCode], sim_input: dict):
     try:
         assert issubclass(Code, tc.TileCode)
     except:
-        raise TypeError("Code must be a subclass of the TileCode class.")
+        raise TypeError("Code must be a subclass of TileCode.")
     
     ## Extract input parameters
     E_X, E_Y, E_Z = (sim_input["E_X"], sim_input["E_Y"], sim_input["E_Z"])
@@ -74,7 +74,7 @@ def run_threshold_simulation(Code: Type[tc.TileCode], sim_input: dict):
     error_model = PauliErrorModel(E_X, E_Y, E_Z)
     p_vals = np.linspace(p_min, p_max, n_p)
 
-    sim_name = get_sim_name(sim_input)
+    sim_name = get_sim_name(Code, sim_input)
     output_path = OUTPUT_DIR + sim_name + ".json"
 
     ## Run simulation
@@ -90,13 +90,21 @@ def run_threshold_simulation(Code: Type[tc.TileCode], sim_input: dict):
     
     batch_sim.run(n_trials, progress=tqdm)
 
-def analyze_and_plot_threshold(sim_name):
+def analyze_and_plot_threshold(Code: Type[tc.TileCode], sim_input: dict):
     """
     Analyze output from a simulation, and create the threshold plots. The resulting plot is saved in the plot directory.
 
     ## Parameters:
-        sim_name: Name of output and plot file (not including folder or file type). Should be the same as acquired from get_sim_name().
+        - TileCodeClass = The Tile Code to run the simulation for. This must be a subclass
+            of the TileCode class.
+        - sim_input = Dictionary of simulation parameters. Must include the following:
+            - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
+            - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
+            - "n_p" = Number of p-values to include in the simulation.
+            - "L_vals" = List of code-sizes to consider.
+            - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
     """
+    sim_name = get_sim_name(Code, sim_input)
     sim_data_path = OUTPUT_DIR + sim_name + ".json" # Path to output data from simulation.
     plot_path = PLOT_DIR + sim_name + ".pdf" # Path for saving the threshold plot.
     
@@ -115,7 +123,7 @@ def analyze_and_plot_threshold(sim_name):
 
 
 ## Set simulation parameters
-code = tc.TileCode_B3_W6
+# Code = tc.TileCode_B4_W8
 sim_input = {
     "E_X": 0.5,
     "E_Y": 0.0,
@@ -127,10 +135,27 @@ sim_input = {
     "n_trials": 500
 }
 
-## Run and analyze simulation
-run_threshold_simulation(code, sim_input)
-sim_name = get_sim_name(sim_input)
-analyze_and_plot_threshold(sim_name)
+Codes = [
+    tc.TileCode_B3_W6,
+    tc.TileCode_B3_W8,
+    tc.TileCode_B4_W8
+]
+E_XYZs = [
+    [0.5, 0.0, 0.5],
+    [1/3, 1/3, 1/3]
+]
 
-print()
-print(f"Name of simulation: {sim_name}")
+for Code in Codes:
+    for E_XYZ in E_XYZs:
+        print(f"{Code.__name__} | {E_XYZ}")
+        E_X, E_Y, E_Z = E_XYZ
+        sim_input["E_X"] = E_X
+        sim_input["E_Y"] = E_Y
+        sim_input["E_Z"] = E_Z
+
+        ## Run and analyze simulation
+        run_threshold_simulation(Code, sim_input)
+        analyze_and_plot_threshold(Code, sim_input)
+
+        print()
+        print(f"Name of simulation: {get_sim_name(Code, sim_input)}")
