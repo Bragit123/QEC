@@ -171,7 +171,11 @@ def analyze_and_plot_threshold(
 if __name__ == "__main__":
     ## Set simulation parameters
     # Code = tc.TileCode_B3_W6
-    Codes = [tc.TileCode_B3_W6, tc.TileCode_B3_W8, tc.TileCode_B4_W8]
+    Codes = [
+        tc.TileCode_B3_W6,
+        tc.TileCode_B3_W8,
+        tc.TileCode_B4_W8
+    ]
     sim_input = {
         "E_X": 1/3,
         "E_Y": 1/3,
@@ -180,7 +184,7 @@ if __name__ == "__main__":
         "p_max": 0.3,
         "n_p": 10,
         "L_vals": [8, 12, 16],
-        "n_trials": 500
+        "n_trials": 1000
     }
     Decoder = BeliefPropagationLSDDecoder
 
