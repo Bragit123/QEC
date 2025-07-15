@@ -52,7 +52,7 @@ def get_sim_name(
     trials_text = f"trials_{sim_input["n_trials"]}"
 
     ## Combine parameter strings into one string.
-    sim_name = f"th_{code_name}__{decoder_name}__{error_text}__{L_text}__{p_text}__{trials_text}"
+    sim_name = f"th1_{code_name}__{decoder_name}__{error_text}__{L_text}__{p_text}__{trials_text}"
 
     return sim_name
 
@@ -175,8 +175,8 @@ if __name__ == "__main__":
         "E_X": 1/3,
         "E_Y": 1/3,
         "E_Z": 1/3,
-        "p_min": 1e-6,
-        "p_max": 1e-1,
+        "p_min": 1e-2,
+        "p_max": 1.0,
         "n_p": 10,
         "L_vals": [8, 12, 16],
         "n_trials": 500
@@ -185,6 +185,6 @@ if __name__ == "__main__":
     
     # Run and analyze simulation
     run_threshold_simulation(Code, sim_input, Decoder, p_logarithmic=True)
-    analyze_and_plot_threshold(Code, sim_input, Decoder, include_threshold_estimate=False, xscale="log", yscale="log")
+    analyze_and_plot_threshold(Code, sim_input, Decoder, include_threshold_estimate=False, xscale="log")
     print()
     print(f"Name of simulation: {get_sim_name(Code, sim_input, Decoder)}")
