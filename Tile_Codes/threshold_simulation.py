@@ -170,29 +170,21 @@ def analyze_and_plot_threshold(
 
 if __name__ == "__main__":
     ## Set simulation parameters
-    # Code = tc.TileCode_B3_W6
-    Codes = [
-        tc.TileCode_B3_W6,
-        tc.TileCode_B3_W8,
-        tc.TileCode_B4_W8
-    ]
+    Code = tc.TileCode_B3_W6
     sim_input = {
         "E_X": 1/3,
         "E_Y": 1/3,
         "E_Z": 1/3,
-        "p_min": 0.001,
-        "p_max": 0.3,
+        "p_min": 1e-6,
+        "p_max": 1e-1,
         "n_p": 10,
         "L_vals": [8, 12, 16],
-        "n_trials": 1000
+        "n_trials": 500
     }
     Decoder = BeliefPropagationLSDDecoder
-
-    for Code in Codes:
-        print(f"{Code.__name__}")
-        
-        # Run and analyze simulation
-        run_threshold_simulation(Code, sim_input, Decoder)
-        analyze_and_plot_threshold(Code, sim_input, Decoder, include_threshold_estimate=False)
-        print()
-        print(f"Name of simulation: {get_sim_name(Code, sim_input, Decoder)}")
+    
+    # Run and analyze simulation
+    run_threshold_simulation(Code, sim_input, Decoder, p_logarithmic=True)
+    analyze_and_plot_threshold(Code, sim_input, Decoder, include_threshold_estimate=False, xscale="log", yscale="log")
+    print()
+    print(f"Name of simulation: {get_sim_name(Code, sim_input, Decoder)}")

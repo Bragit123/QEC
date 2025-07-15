@@ -15,8 +15,8 @@ class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
                 schedule="serial",
-                osd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
-                osd_order=self._osd_order
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order
             )
 
             self.x_decoder = BpLsdDecoder(
@@ -26,8 +26,8 @@ class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
                 schedule="serial",
-                osd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
-                osd_order=self._osd_order
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order
             )
 
         else:
@@ -37,8 +37,8 @@ class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
                 max_iter=self._max_bp_iter,
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
-                osd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
-                osd_order=self._osd_order
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order
             )
         self._initialized = True
     
