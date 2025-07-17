@@ -20,7 +20,7 @@ pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
 gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
 
 L_vals = [12]
-p_vals = np.linspace(0.01, 0.25, 10)
+p_vals = np.linspace(0.01, 0.8, 20)
 
 pauli_json = "json_pauli.json"
 gauss_json = "json_gauss.json"
@@ -69,25 +69,25 @@ analysis_pauli = Analysis(pauli_json)
 analysis_gauss = Analysis(gauss_json)
 analysis_real_gauss = Analysis(real_gauss_json)
 
-fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(15, 5))
-# plt.sca(ax[0,0])
-# analysis_pauli.plot_thresholds(include_threshold_estimate=False)
-# plt.sca(ax[0,1])
-# analysis_pauli.plot_thresholds(sector="X", include_threshold_estimate=False)
-# plt.sca(ax[1,0])
-# analysis_gauss.plot_thresholds(include_threshold_estimate=False)
-# plt.sca(ax[1,1])
-# analysis_gauss.plot_thresholds(sector="X", include_threshold_estimate=False)
-# plt.sca(ax[2,0])
-# analysis_real_gauss.plot_thresholds(include_threshold_estimate=False)
-# plt.sca(ax[2,1])
-# analysis_real_gauss.plot_thresholds(sector="X", include_threshold_estimate=False)
-plt.sca(ax[0])
+fig, ax = plt.subplots(ncols=2, nrows=3, figsize=(15, 5))
+plt.sca(ax[0,0])
+analysis_pauli.plot_thresholds(include_threshold_estimate=False)
+plt.sca(ax[0,1])
+analysis_pauli.plot_thresholds(sector="X", include_threshold_estimate=False)
+plt.sca(ax[1,0])
 analysis_gauss.plot_thresholds(include_threshold_estimate=False)
-analysis_real_gauss.plot_thresholds(include_threshold_estimate=False)
-plt.sca(ax[1])
+plt.sca(ax[1,1])
 analysis_gauss.plot_thresholds(sector="X", include_threshold_estimate=False)
+plt.sca(ax[2,0])
+analysis_real_gauss.plot_thresholds(include_threshold_estimate=False)
+plt.sca(ax[2,1])
 analysis_real_gauss.plot_thresholds(sector="X", include_threshold_estimate=False)
+# plt.sca(ax[0])
+# analysis_gauss.plot_thresholds(include_threshold_estimate=False)
+# analysis_real_gauss.plot_thresholds(include_threshold_estimate=False)
+# plt.sca(ax[1])
+# analysis_gauss.plot_thresholds(sector="X", include_threshold_estimate=False)
+# analysis_real_gauss.plot_thresholds(sector="X", include_threshold_estimate=False)
 
 fig.savefig(plot_path, bbox_inches="tight")
 
@@ -95,13 +95,17 @@ fig.savefig(plot_path, bbox_inches="tight")
 results_gauss = analysis_gauss.get_results()
 results_real_gauss = analysis_real_gauss.get_results()
 
+sector = ""
+# sector = "_X"
+# sector = "_Z"
 p_vals_gauss = results_gauss["error_rate"]
 p_vals_real_gauss = results_real_gauss["error_rate"]
-p_est_gauss = results_gauss["p_est"]
-p_se_gauss = results_gauss["p_se"]
-p_est_real_gauss = results_real_gauss["p_est"]
-p_se_real_gauss = results_real_gauss["p_se"]
+p_est_gauss = results_gauss[f"p_est{sector}"]
+p_se_gauss = results_gauss[f"p_se{sector}"]
+p_est_real_gauss = results_real_gauss[f"p_est{sector}"]
+p_se_real_gauss = results_real_gauss[f"p_se{sector}"]
 plt.figure()
+plt.title(sector[1:])
 plt.xlabel("Physical error rate $p$")
 plt.ylabel("Logical error rate $p_L$")
 plt.plot(p_vals_gauss, p_est_gauss, "o-", color="blue", label="Without Gaussian decoder")

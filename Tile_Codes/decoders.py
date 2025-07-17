@@ -115,6 +115,7 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
         # f_correct_Delta = f_correct(Delta_m_arr) / f_norm
         # f_incorrect_Delta = 1.0 - f_correct_Delta
         f_incorrect_Delta = f_correct(np.sqrt(np.pi) - Delta_m_arr)
+        f_incorrect_Delta = f_correct(Delta_m_arr)
         # print(f"{np.min(Delta_m_arr):6.3} | {np.max(Delta_m_arr):6.3} | {np.mean(Delta_m_arr):6.3}")
         print(f"{np.min(f_incorrect_Delta):10.3} | {np.max(f_incorrect_Delta):10.3} | {np.mean(f_incorrect_Delta):10.3}")
 
