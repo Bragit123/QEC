@@ -23,7 +23,7 @@ pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
 gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
 
 L_vals = [12]
-p_vals = np.linspace(0.001, 0.8, 20)
+p_vals = np.linspace(0.001, 0.3, 20)
 
 pauli_json = "TEMP_json_pauli.json"
 gauss_json = "TEMP_json_gauss.json"
@@ -60,7 +60,7 @@ for L in L_vals:
         real_dir_sim_gauss = DirectSimulation(code, gauss_model, real_gauss_decoder, p, rng=rng)
         batch_sim_real_gauss.append(real_dir_sim_gauss)
 
-n_trials = 500
+n_trials = 100
 print("Running Pauli simulation:")
 batch_sim_pauli.run(n_trials, progress=tqdm)
 print("Running Gauss simulation:")

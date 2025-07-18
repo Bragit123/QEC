@@ -1,19 +1,50 @@
-from ldpc.bplsd_decoder import BpLsdDecoder
+from typing import Callable
 
+from ldpc.bplsd_decoder import BpLsdDecoder
 from panqec.decoders import BeliefPropagationOSDDecoder
 
 import numpy as np
-
 from colorama import Back, Style
 
 
-def gauss_likelihood(std:float):
+def gauss_likelihood(std:float) -> Callable[[float], float]:
+    """
+    Gaussian distribution.
+
+    Parameters
+    ----------
+    std : float
+        Standard deviation of the Gaussian distribution.
+    
+    Returns
+    -------
+    Callable
+        Gaussian distribution function with the given standard deviation.
+        It takes in a real number Delta and returns the Gaussian function
+        evaluated at Delta.
+    """
     def f(Delta:float):
         return 1/(np.sqrt(2*np.pi)*std) * np.exp(-Delta*Delta / (2*std*std))
     return f
 
 
-def get_error_channel(std, Delta_m_arr):
+def get_error_channel(std: float, Delta_m_arr: np.ndarray) -> np.ndarray:
+    """
+    Computes the error_channel to pass through to the decoder from the standard
+    deviation of the Gaussian distribution and an array of measured values Delta_m.
+
+    Parameters
+    ----------
+    std : float
+        Standard deviation of the Gaussian distribution.
+    Delta_m_arr : ndarray
+        Array of measured deviations when generating errors.
+    
+    Returns
+    -------
+    ndarray
+        The error channel to send into the decoder.
+    """
     f_correct = gauss_likelihood(std)
 
     f_correct_Delta = f_correct(Delta_m_arr)
@@ -121,6 +152,14 @@ class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
 
 
 class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
+    """
+    Decoder for a QEC model with error channels produced by Gaussian likelihoods as
+    described by Fukui, Tomita and Okamoto in
+        
+    "High-Threshold Fault-Tolerant Quantum Computation with Analog Quantum Error Correction"
+
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
+    """
     def initialize_decoders(self):
         std = self.error_model.std
         Delta_m_arr = self.error_model.Delta_m_arr
@@ -168,7 +207,6 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
         if not self._initialized:
             self.initialize_decoders()
-        # self.initialize_decoders()
 
         is_css = self.code.is_css
         n_qubits = self.code.n

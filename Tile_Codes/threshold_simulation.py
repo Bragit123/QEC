@@ -17,23 +17,27 @@ OUTPUT_DIR = "Simulation_Outputs/" # Directory to store JSON files containing th
 PLOT_DIR = "Threshold_Plots/" # Directory to store threshold plots created from the simulations.
 
 def get_sim_name(
-        Code: Type[tc.TileCode],
+        Code: Type[StabilizerCode],
         sim_input: dict,
         Decoder: Type[BaseDecoder]
 ):
     """
     Returns a name that is used for the output-data and plot files, such as "thresholds_error_0.5_0.0_0.5__L_8_12_16_20__p_0.001_0.3_20__trials_1000".
 
-    ## Parameters:
-        - Code = The Tile Code to run the simulation for. This must be a subclass
-            of the TileCode class.
-        - sim_input = Dictionary of simulation parameters. Must include the following:
-            - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
-            - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
-            - "n_p" = Number of p-values to include in the simulation.
-            - "L_vals" = List of code-sizes to consider.
-            - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
-        - Decoder = Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
+    Parameters
+    ----------
+    Code : StabilizerCode class
+        The Tile Code to run the simulation for. This must be a subclass
+        of the TileCode class.
+    sim_input : dict
+        Dictionary of simulation parameters. Must include the following:
+        - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
+        - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
+        - "n_p" = Number of p-values to include in the simulation.
+        - "L_vals" = List of code-sizes to consider.
+        - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
+    Decoder : BaseDecoder class
+        Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
     """
     ## Extract and "stringify" the simulation parameters.
     code_name = Code.__name__
@@ -66,17 +70,22 @@ def run_threshold_simulation(
     """
     Runs a threshold simulation, and stores it into a JSON file.
 
-    ## Parameters:
-        - Code = The Tile Code to run the simulation for. This must be a subclass
-            of the TileCode class.
-        - sim_input = Dictionary of simulation parameters. Must include the following:
-            - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
-            - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
-            - "n_p" = Number of p-values to include in the simulation.
-            - "L_vals" = List of code-sizes to consider.
-            - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
-        - Decoder = Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
-        - p_logarithmic = If True, p_values are distributed logarithmically instead of linearly.
+    Parameters
+    ----------
+    Code : StabilizerCode class
+        The Tile Code to run the simulation for. This must be a subclass
+        of the TileCode class.
+    sim_input : dict
+        Dictionary of simulation parameters. Must include the following:
+        - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
+        - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
+        - "n_p" = Number of p-values to include in the simulation.
+        - "L_vals" = List of code-sizes to consider.
+        - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
+    Decoder : BaseDecoder class
+        Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
+    p_logarithmic : bool
+        If True, p_values are distributed logarithmically instead of linearly.
     """
     try:
         assert issubclass(Code, StabilizerCode)
@@ -122,7 +131,7 @@ def run_threshold_simulation(
 
 
 def analyze_and_plot_threshold(
-        Code: Type[tc.TileCode],
+        Code: Type[StabilizerCode],
         sim_input: dict,
         Decoder: Type[BaseDecoder] = BeliefPropagationOSDDecoder,
         xscale: str = "linear",
@@ -132,20 +141,26 @@ def analyze_and_plot_threshold(
     """
     Analyze output from a simulation, and create the threshold plots. The resulting plot is saved in the plot directory.
 
-    ## Parameters:
-        - Code = The Tile Code to run the simulation for. This must be a subclass
-            of the TileCode class.
-        - sim_input = Dictionary of simulation parameters. Must include the following:
-            - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
-            - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
-            - "n_p" = Number of p-values to include in the simulation.
-            - "L_vals" = List of code-sizes to consider.
-            - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
-        - Decoder = Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
-        - xscale = Input to matplotlibs ax.set_xscale().
-        - yscale = Input to matplotlibs ax.set_yscale().
-        - include_threshold_estimate = Passed into Analysis.plot_thresholds(). If True: computes and
-            plots threshold region.
+    Parameters
+    ----------
+    Code : Stabilizer class
+        The Tile Code to run the simulation for. This must be a subclass
+        of the TileCode class.
+    sim_input : dict
+        Dictionary of simulation parameters. Must include the following:
+        - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
+        - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
+        - "n_p" = Number of p-values to include in the simulation.
+        - "L_vals" = List of code-sizes to consider.
+        - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
+    Decoder : BaseDecoder class
+        Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
+    xscale : str
+        Input to matplotlibs ax.set_xscale().
+    yscale : str
+        Input to matplotlibs ax.set_yscale().
+    include_threshold_estimate : bool
+        Passed into Analysis.plot_thresholds(). If True: computes and plots threshold region.
     """
     sim_name = get_sim_name(Code, sim_input, Decoder)
     sim_data_path = OUTPUT_DIR + sim_name + ".json" # Path to output data from simulation.
