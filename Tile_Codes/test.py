@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-# Code = Toric2DCode
-Code = TileCode_B3_W6
+Code = Toric2DCode
+# Code = TileCode_B3_W6
 Decoder = BeliefPropagationLSDDecoder
 Gauss_Decoder = GaussBeliefPropagationLSDDecoder
 
@@ -23,15 +23,15 @@ pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
 gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
 
 L_vals = [12]
-p_vals = np.linspace(0.001, 0.3, 10)
+p_vals = np.linspace(0.001, 0.8, 20)
 
-pauli_json = "json_pauli.json"
-gauss_json = "json_gauss.json"
-real_gauss_json = "json_real_gauss.json"
+pauli_json = "TEMP_json_pauli.json"
+gauss_json = "TEMP_json_gauss.json"
+real_gauss_json = "TEMP_json_real_gauss.json"
 
 json_paths = [pauli_json, gauss_json, real_gauss_json]
 if os.path.exists(pauli_json):
-    delete = input("JSON files exist. Would you like to delete them? (y/n): ")
+    delete = input("JSON files exist. Would you like to delete them and make new simulations? (y/n): ")
     delete = True if delete.lower() == "y" else False
     if delete:
         for json_path in json_paths:
@@ -60,7 +60,7 @@ for L in L_vals:
         real_dir_sim_gauss = DirectSimulation(code, gauss_model, real_gauss_decoder, p, rng=rng)
         batch_sim_real_gauss.append(real_dir_sim_gauss)
 
-n_trials = 100
+n_trials = 500
 print("Running Pauli simulation:")
 batch_sim_pauli.run(n_trials, progress=tqdm)
 print("Running Gauss simulation:")

@@ -7,9 +7,13 @@ Okamoto in
 https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
 """
 
+from typing import Tuple
+import functools
+
 from panqec.error_models import PauliErrorModel
 from panqec.codes import StabilizerCode
 from panqec.bpauli import pauli_to_bsf
+
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import newton
@@ -98,18 +102,44 @@ class GaussPauliErrorModel(PauliErrorModel):
 
         return error
 
+    @functools.lru_cache()
+    def probability_distribution(
+        self, code: StabilizerCode, error_rate: float
+    ) -> Tuple:
+        n = code.n
+        r_x, r_y, r_z = self.direction
+
+        p: dict = {}
+        p['I'] = (1 - error_rate) * np.ones(n)
+        p['X'] = (r_x * error_rate) * np.ones(n)
+        p['Y'] = (r_y * error_rate) * np.ones(n)
+        p['Z'] = (r_z * error_rate) * np.ones(n)
+
+        if self._deformation_name is not None:
+            for i in range(code.n):
+                deformation = code.get_deformation(
+                    code.qubit_coordinates[i], self._deformation_name,
+                    **self._deformation_kwargs
+                )
+                previous_p = {pauli: p[pauli][i] for pauli in ['X', 'Y', 'Z']}
+                for pauli in ['X', 'Y', 'Z']:
+                    p[pauli][i] = previous_p[deformation[pauli]]
+
+        return p['I'], p['X'], p['Y'], p['Z']
+
 
 if __name__ == "__main__":
     from panqec.codes import Toric2DCode
-    from colorama import Fore, Back, Style
+    from colorama import Back, Style
     
     code = Toric2DCode(6)
     error_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
     error_rate = 0.1
     error = error_model.generate(code, error_rate)
 
-    print("Delta_bar | Delta_m | error")
-    print("----------+---------+------")
+    spaceing = 11
+    print(f"{"Delta_bar":^11}|{"Delta_m":^11}|{"error":^11}")
+    print("-"*11 + "+" + "-"*11 + "+" + "-"*11)
     for i in range(code.n):
         err = error[i]
         Delta_m = error_model.Delta_m_arr[i]
@@ -120,6 +150,6 @@ if __name__ == "__main__":
         else:
             color_style = Style.RESET_ALL
 
-        print(color_style + f"{Delta_bar:9.4} | {Delta_m:7.4} | {err:^5} " + Style.RESET_ALL)
+        print(color_style + f"{Delta_bar:^11.4}|{Delta_m:^11.4}|{err:^11}" + Style.RESET_ALL)
 
     print(np.all(error[code.n:]==0))

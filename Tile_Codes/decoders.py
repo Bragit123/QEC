@@ -1,13 +1,28 @@
-import numpy as np
 from ldpc.bplsd_decoder import BpLsdDecoder
-from ldpc.bp_decoder import BpDecoder
+
 from panqec.decoders import BeliefPropagationOSDDecoder
-from scipy.integrate import quad
+
+import numpy as np
+
+from colorama import Back, Style
+
 
 def gauss_likelihood(std:float):
-    def f(Delta):
+    def f(Delta:float):
         return 1/(np.sqrt(2*np.pi)*std) * np.exp(-Delta*Delta / (2*std*std))
     return f
+
+
+def get_error_channel(std, Delta_m_arr):
+    f_correct = gauss_likelihood(std)
+
+    f_correct_Delta = f_correct(Delta_m_arr)
+    f_norm = np.max(f_correct_Delta)
+    f_correct_Delta = f_correct_Delta / f_norm
+
+    error_channel = 1.0 - f_correct_Delta
+
+    return error_channel
 
 
 class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
@@ -72,8 +87,7 @@ class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
         probabilities = np.hstack([probabilities_z, probabilities_x])
 
         if is_css:
-            # Update probabilities (in case the distribution is new at each
-            # iteration)
+            # Update probabilities (in case the distribution is new at each iteration)
             self.x_decoder.update_channel_probs(probabilities_x)
             self.z_decoder.update_channel_probs(probabilities_z)
 
@@ -110,25 +124,13 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
     def initialize_decoders(self):
         std = self.error_model.std
         Delta_m_arr = self.error_model.Delta_m_arr
-        th = np.sqrt(np.pi) / 2.0
-        f_correct = gauss_likelihood(std)
-        f_norm = quad(f_correct, 0.0, th)[0]
-        f_correct_Delta = f_correct(Delta_m_arr) / f_norm
-        f_incorrect_Delta = 1.0 - f_correct_Delta
-        # f_incorrect_Delta = f_correct(np.sqrt(np.pi) - Delta_m_arr)
-        # f_incorrect_Delta = f_correct(Delta_m_arr)
-        # print(f"{np.min(Delta_m_arr):6.3} | {np.max(Delta_m_arr):6.3} | {np.mean(Delta_m_arr):6.3}")
-        # print(f"{np.min(f_incorrect_Delta):10.3} | {np.max(f_incorrect_Delta):10.3} | {np.mean(f_incorrect_Delta):10.3}")
-        # f_incorrect_Delta = np.zeros(self.code.n)
-
+        error_channel = get_error_channel(std, Delta_m_arr)
 
         is_css = self.code.is_css
         if is_css:
             self.z_decoder = BpLsdDecoder(
-            # self.z_decoder = BpDecoder(
                 self.code.Hx,
-                # error_rate=self.error_rate,
-                error_channel = f_incorrect_Delta,
+                error_rate=0.0, ##### NOTE: Only considering X-errors so far!
                 max_iter=self._max_bp_iter,
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
@@ -138,10 +140,8 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
             )
 
             self.x_decoder = BpLsdDecoder(
-            # self.x_decoder = BpDecoder(
                 self.code.Hz,
-                # error_rate=self.error_rate,
-                error_channel = f_incorrect_Delta,
+                error_channel = error_channel,
                 max_iter=self._max_bp_iter,
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
@@ -152,10 +152,8 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
         else:
             self.decoder = BpLsdDecoder(
-            # self.decoder = BpDecoder(
                 self.code.stabilizer_matrix,
-                # error_rate=self.error_rate,
-                error_channel = f_incorrect_Delta,
+                error_channel = error_channel,
                 max_iter=self._max_bp_iter,
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
@@ -182,8 +180,10 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
         pi, px, py, pz = self.get_probabilities()
 
-        probabilities_x = px + py
-        probabilities_z = pz + py
+        std = self.error_model.std
+        Delta_m_arr = self.error_model.Delta_m_arr
+        probabilities_z = np.zeros(self.code.n)
+        probabilities_x = get_error_channel(std, Delta_m_arr)
 
         probabilities = np.hstack([probabilities_z, probabilities_x])
 
@@ -198,6 +198,7 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
             # Bayes update of the probability
             if self._channel_update:
+                print("UPDATE PROB")
                 new_x_probs = self.update_probabilities(
                     z_correction, px, py, pz, direction="z->x"
                 )
