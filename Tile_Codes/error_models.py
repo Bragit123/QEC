@@ -13,6 +13,7 @@ from panqec.bpauli import pauli_to_bsf
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import newton
+from scipy.special import erfinv
 
 
 def p_corr(std):
@@ -27,15 +28,24 @@ def p_corr(std):
     return quad(gauss, -th, th)[0]
 
 
+# def get_std(p):
+#     """
+#     Find the standard deviation of a gauss distribution such that the likelihood
+#     of incorrect decision is p
+#     """
+#     def zero_func(std):
+#         return p_corr(std) + p - 1
+    
+#     return newton(zero_func, 1)
+
 def get_std(p):
     """
     Find the standard deviation of a gauss distribution such that the likelihood
     of incorrect decision is p
     """
-    def zero_func(std):
-        return p_corr(std) + p - 1
-    
-    return newton(zero_func, 1)
+    # return np.sqrt(np.pi/8.0) * erfinv(p)
+    std = np.sqrt(np.pi/8.0) / erfinv(1.0-p)
+    return std
 
 
 def sample_from_gauss(std, rng=None):

@@ -3,6 +3,7 @@ from panqec.error_models import PauliErrorModel
 from panqec.simulation import DirectSimulation, BatchSimulation
 from panqec.analysis import Analysis
 
+from tile_codes import TileCode_B3_W6
 from error_models import GaussPauliErrorModel
 from decoders import BeliefPropagationLSDDecoder, GaussBeliefPropagationLSDDecoder
 
@@ -12,15 +13,17 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-Code = Toric2DCode
+# Code = Toric2DCode
+Code = TileCode_B3_W6
 Decoder = BeliefPropagationLSDDecoder
 Gauss_Decoder = GaussBeliefPropagationLSDDecoder
 
+rng = np.random.default_rng(100)
 pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
 gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
 
 L_vals = [12]
-p_vals = np.linspace(0.01, 0.8, 20)
+p_vals = np.linspace(0.001, 0.3, 10)
 
 pauli_json = "json_pauli.json"
 gauss_json = "json_gauss.json"
@@ -46,15 +49,15 @@ for L in L_vals:
     for p in p_vals:
         p = float(p)
         pauli_decoder = Decoder(code, pauli_model, p)
-        dir_sim_pauli = DirectSimulation(code, pauli_model, pauli_decoder, p)
+        dir_sim_pauli = DirectSimulation(code, pauli_model, pauli_decoder, p, rng=rng)
         batch_sim_pauli.append(dir_sim_pauli)
         
         gauss_decoder = Decoder(code, gauss_model, p)
-        dir_sim_gauss = DirectSimulation(code, gauss_model, gauss_decoder, p)
+        dir_sim_gauss = DirectSimulation(code, gauss_model, gauss_decoder, p, rng=rng)
         batch_sim_gauss.append(dir_sim_gauss)
         
         real_gauss_decoder = Gauss_Decoder(code, gauss_model, p)
-        real_dir_sim_gauss = DirectSimulation(code, gauss_model, real_gauss_decoder, p)
+        real_dir_sim_gauss = DirectSimulation(code, gauss_model, real_gauss_decoder, p, rng=rng)
         batch_sim_real_gauss.append(real_dir_sim_gauss)
 
 n_trials = 100
