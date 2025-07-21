@@ -72,7 +72,7 @@ def sample_from_gauss3D(std_X:float, std_Z: float, rng: Optional[np.random.Gener
         pauli_err = "X"
         print(Back.RED + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
         return (pauli_err, Delta_X_m, Delta_Z_m)
-    if x_abs <= th and z_abs > th:
+    elif x_abs <= th and z_abs > th:
         Delta_X_m = np.abs(x_abs)
         Delta_Z_m = np.abs(dist - z_abs)
         pauli_err = "Z"
@@ -90,6 +90,62 @@ def sample_from_gauss3D(std_X:float, std_Z: float, rng: Optional[np.random.Gener
         pauli_err = "I"
         print(f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}")
         return (pauli_err, Delta_X_m, Delta_Z_m)
+
+def sample_from_gauss(std: float, direction: np.ndarray, rng: Optional[np.random.Generator]=None) -> Tuple:
+    """
+    Draw a sample from a normal distribution, and return a tuple containing the
+    measured deviation Delta_m and whether the sample produced an error.
+    
+    The sample produces an error if the measured value is outside the interval
+    [-sqrt(pi)/2, sqrt(pi)/2], as described in
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054.
+
+    Parameters
+    ----------
+    std : ndarray
+        3-dimensional array of the standard deviation in the X, Y and Z
+        directions respectively.
+    rng : np.random.Generator   
+        Random number generator to use for sampling. If None: Defaults to
+        np.random.default_rng().
+    
+    Returns
+    -------
+    ndarray
+        The minimized deviation Delta_m.
+    str
+        The error. 0 if no error occured, 1 if it did.
+    """
+    from colorama import Back
+    rng = np.random.default_rng() if rng is None else rng
+
+    dist = np.sqrt(np.pi) # Distance between q-values
+    th = dist / 2.0 # Threshold for producing an error
+
+    x = rng.normal(loc=0.0, scale=std)
+    x_abs = np.abs(x)
+
+    if x_abs <= th:
+        Delta_X_m = x_abs
+        Delta_Z_m = x_abs
+        pauli_err = "I"
+    else:
+        rx, ry, rz = direction
+        x = rng.uniform()
+        if x <= rx:
+            Delta_X_m = np.abs(dist - x_abs)
+            Delta_Z_m = np.abs(dist - x_abs)
+            pauli_err = "X"
+        elif x <= rx+rz:
+            Delta_X_m = np.abs(dist - x_abs)
+            Delta_Z_m = np.abs(dist - x_abs)
+            pauli_err = "Z"
+        else:
+            Delta_X_m = np.abs(dist - x_abs)
+            Delta_Z_m = np.abs(dist - x_abs)
+            pauli_err = "Y"
+    
+    return (pauli_err, Delta_X_m, Delta_Z_m)
 
 
 def gauss_likelihood(std:float) -> Callable[[float], float]:
@@ -155,21 +211,25 @@ class GaussPauliErrorModel3D(PauliErrorModel):
         """
         rng = np.random.default_rng() if rng is None else rng
 
-        ## Get the standard deviation of XYZ-errors as a 3-array.
-        px, py, pz = error_rate * np.array(self.direction)
-        qx = px + py
-        qz = pz + py
-        std_X = get_std(qx)
-        std_Z = get_std(qz)
+        # ## Get the standard deviation of XYZ-errors as a 3-array.
+        # px, py, pz = error_rate * np.array(self.direction)
+        # qx = px + py
+        # qz = pz + py
+        # std_X = get_std(qx)
+        # std_Z = get_std(qz)
 
-        self.std_X = std_X
-        self.std_Z = std_Z
+        # self.std_X = std_X
+        # self.std_Z = std_Z
+
+        std = get_std(error_rate)
+        self.std = std
 
         error_pauli = ""
         Delta_X_m_arr = np.zeros(code.n)
         Delta_Z_m_arr = np.zeros(code.n)
         for i in range(code.n):
-            pauli, Delta_X_m, Delta_Z_m = sample_from_gauss3D(std_X, std_Z, rng)
+            pauli, Delta_X_m, Delta_Z_m = sample_from_gauss(std, self.direction, rng)
+            # pauli, Delta_X_m, Delta_Z_m = sample_from_gauss3D(std_X, std_Z, rng)
             Delta_X_m_arr[i] = Delta_X_m
             Delta_Z_m_arr[i] = Delta_Z_m
 
@@ -192,8 +252,10 @@ class GaussBeliefPropagationLSDDecoder3D(BeliefPropagationLSDDecoder):
     https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
     """
     def initialize_decoders(self):
-        std_X = self.error_model.std_X
-        std_Z = self.error_model.std_Z
+        # std_X = self.error_model.std_X
+        # std_Z = self.error_model.std_Z
+        std_X = self.error_model.std
+        std_Z = self.error_model.std
         Delta_X_m_arr = self.error_model.Delta_X_m_arr
         Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
         error_channel_X = get_error_channel(std_X, Delta_X_m_arr)
@@ -254,13 +316,14 @@ class GaussBeliefPropagationLSDDecoder3D(BeliefPropagationLSDDecoder):
 
         pi, px, py, pz = self.get_probabilities()
 
-        std_X = self.error_model.std_X
-        std_Z = self.error_model.std_Z
+        # std_X = self.error_model.std_X
+        # std_Z = self.error_model.std_Z
+        std_X = self.error_model.std
+        std_Z = self.error_model.std
         Delta_X_m_arr = self.error_model.Delta_X_m_arr
         Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
         probabilities_x = get_error_channel(std_X, Delta_X_m_arr)
         probabilities_z = get_error_channel(std_Z, Delta_Z_m_arr)
-        # probabilities_z = np.zeros(self.code.n)
 
         probabilities = np.hstack([probabilities_z, probabilities_x])
 

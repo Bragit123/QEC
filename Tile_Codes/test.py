@@ -24,8 +24,8 @@ Gauss_Decoder = GaussBeliefPropagationLSDDecoder3D
 rng = np.random.default_rng(100)
 # pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
 # gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
-pauli_model = PauliErrorModel(1/3, 1/3, 1/3)
-gauss_model = GaussPauliErrorModel3D(1/2, 0.0, 1/2)
+pauli_model = PauliErrorModel(0.2, 0.4, 0.4)
+gauss_model = GaussPauliErrorModel3D(0.2, 0.4, 0.4)
 
 L_vals = [12]
 p_vals = np.linspace(0.001, 0.3, 20)
