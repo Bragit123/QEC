@@ -7,20 +7,25 @@ from tile_codes import TileCode_B3_W6
 from error_models import GaussPauliErrorModel
 from decoders import BeliefPropagationLSDDecoder, GaussBeliefPropagationLSDDecoder
 
+from upgrade_gauss import GaussPauliErrorModel3D, GaussBeliefPropagationLSDDecoder3D
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-# Code = Toric2DCode
-Code = TileCode_B3_W6
+Code = Toric2DCode
+# Code = TileCode_B3_W6
 Decoder = BeliefPropagationLSDDecoder
-Gauss_Decoder = GaussBeliefPropagationLSDDecoder
+# Gauss_Decoder = GaussBeliefPropagationLSDDecoder
+Gauss_Decoder = GaussBeliefPropagationLSDDecoder3D
 
 rng = np.random.default_rng(100)
-pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
-gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
+# pauli_model = PauliErrorModel(1.0, 0.0, 0.0)
+# gauss_model = GaussPauliErrorModel(1.0, 0.0, 0.0)
+pauli_model = PauliErrorModel(1/3, 1/3, 1/3)
+gauss_model = GaussPauliErrorModel3D(1/2, 0.0, 1/2)
 
 L_vals = [12]
 p_vals = np.linspace(0.001, 0.3, 20)
@@ -94,26 +99,48 @@ analysis_real_gauss.plot_thresholds(sector="X", include_threshold_estimate=False
 
 fig.savefig(plot_path, bbox_inches="tight")
 
-
+results_pauli = analysis_pauli.get_results()
 results_gauss = analysis_gauss.get_results()
 results_real_gauss = analysis_real_gauss.get_results()
 
-sector = ""
-# sector = "_X"
-# sector = "_Z"
+p_vals_pauli = results_pauli["error_rate"]
+p_est_pauli = results_pauli[f"p_est"]
+p_se_pauli = results_pauli[f"p_se"]
+
+p_est_pauli_X = results_pauli[f"p_est_X"]
+p_est_pauli_Z = results_pauli[f"p_est_Z"]
+
 p_vals_gauss = results_gauss["error_rate"]
+p_est_gauss = results_gauss[f"p_est"]
+p_se_gauss = results_gauss[f"p_se"]
+
+p_est_gauss_X = results_gauss[f"p_est_X"]
+p_est_gauss_Z = results_gauss[f"p_est_Z"]
+
 p_vals_real_gauss = results_real_gauss["error_rate"]
-p_est_gauss = results_gauss[f"p_est{sector}"]
-p_se_gauss = results_gauss[f"p_se{sector}"]
-p_est_real_gauss = results_real_gauss[f"p_est{sector}"]
-p_se_real_gauss = results_real_gauss[f"p_se{sector}"]
+p_est_real_gauss = results_real_gauss[f"p_est"]
+p_se_real_gauss = results_real_gauss[f"p_se"]
+
+p_est_real_gauss_X = results_real_gauss[f"p_est_X"]
+p_est_real_gauss_Z = results_real_gauss[f"p_est_Z"]
+
 plt.figure()
-plt.title(sector[1:])
+plt.title("Logical error rate for X (dashed), Z (dotted), and combined (solid) sector. ")
 plt.xlabel("Physical error rate $p$")
 plt.ylabel("Logical error rate $p_L$")
+plt.plot(p_vals_pauli, p_est_pauli, "o-", color="black", label="Normal Pauli")
+plt.errorbar(p_vals_pauli, p_est_pauli, yerr=p_se_pauli, capsize=5, color="black")
 plt.plot(p_vals_gauss, p_est_gauss, "o-", color="blue", label="Without Gaussian decoder")
 plt.errorbar(p_vals_gauss, p_est_gauss, yerr=p_se_gauss, capsize=5, color="blue")
 plt.plot(p_vals_real_gauss, p_est_real_gauss, "o-", color="green", label="With Gaussian decoder")
 plt.errorbar(p_vals_real_gauss, p_est_real_gauss, yerr=p_se_real_gauss, capsize=5, color="green")
+
+plt.plot(p_vals_pauli, p_est_pauli_X, color="black", linestyle="dashed")
+plt.plot(p_vals_pauli, p_est_pauli_Z, color="black", linestyle="dotted")
+plt.plot(p_vals_gauss, p_est_gauss_X, color="blue", linestyle="dashed")
+plt.plot(p_vals_gauss, p_est_gauss_Z, color="blue", linestyle="dotted")
+plt.plot(p_vals_real_gauss, p_est_real_gauss_X, color="green", linestyle="dashed")
+plt.plot(p_vals_real_gauss, p_est_real_gauss_Z, color="green", linestyle="dotted")
+
 plt.legend()
 plt.savefig(plot_path, bbox_inches="tight")
