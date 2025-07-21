@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-Code = Toric2DCode
-# Code = TileCode_B3_W6
+# Code = Toric2DCode
+Code = TileCode_B3_W6
 Decoder = BeliefPropagationLSDDecoder
 Gauss_Decoder = GaussBeliefPropagationLSDDecoder
 

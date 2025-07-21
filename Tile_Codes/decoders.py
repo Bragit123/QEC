@@ -46,12 +46,11 @@ def get_error_channel(std: float, Delta_m_arr: np.ndarray) -> np.ndarray:
         The error channel to send into the decoder.
     """
     f_correct = gauss_likelihood(std)
-
+    
     f_correct_Delta = f_correct(Delta_m_arr)
-    f_norm = np.max(f_correct_Delta)
-    f_correct_Delta = f_correct_Delta / f_norm
-
-    error_channel = 1.0 - f_correct_Delta
+    f_incorrect_Delta = f_correct(np.sqrt(np.pi) - Delta_m_arr)
+    f_norm = f_correct_Delta + f_incorrect_Delta
+    error_channel = f_incorrect_Delta / f_norm
 
     return error_channel
 
