@@ -1,4 +1,5 @@
 from typing import Tuple, Optional, Callable
+from colorama import Back
 
 from panqec.error_models import PauliErrorModel
 from panqec.codes import StabilizerCode
@@ -70,26 +71,25 @@ def sample_from_gauss3D(std_X:float, std_Z: float, rng: Optional[np.random.Gener
         Delta_X_m = np.abs(dist - x_abs)
         Delta_Z_m = np.abs(z_abs)
         pauli_err = "X"
-        print(Back.RED + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
-        return (pauli_err, Delta_X_m, Delta_Z_m)
+        color_style = Back.RED
     elif x_abs <= th and z_abs > th:
         Delta_X_m = np.abs(x_abs)
         Delta_Z_m = np.abs(dist - z_abs)
         pauli_err = "Z"
-        print(Back.BLUE + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
-        return (pauli_err, Delta_X_m, Delta_Z_m)
+        color_style = Back.BLUE
     elif x_abs > th and z_abs > th:
         Delta_X_m = np.abs(dist - x_abs)
         Delta_Z_m = np.abs(dist - z_abs)
         pauli_err = "Y"
-        print(Back.GREEN + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
-        return (pauli_err, Delta_X_m, Delta_Z_m)
+        color_style = Back.GREEN
     else:
         Delta_X_m = np.abs(x_abs)
         Delta_Z_m = np.abs(z_abs)
         pauli_err = "I"
-        print(f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}")
-        return (pauli_err, Delta_X_m, Delta_Z_m)
+        color_style = Back.RESET
+    
+    # print(Back.BLUE + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
+    return (pauli_err, Delta_X_m, Delta_Z_m)
 
 def sample_from_gauss(std: float, direction: np.ndarray, rng: Optional[np.random.Generator]=None) -> Tuple:
     """
@@ -116,7 +116,6 @@ def sample_from_gauss(std: float, direction: np.ndarray, rng: Optional[np.random
     str
         The error. 0 if no error occured, 1 if it did.
     """
-    from colorama import Back
     rng = np.random.default_rng() if rng is None else rng
 
     dist = np.sqrt(np.pi) # Distance between q-values
@@ -129,6 +128,7 @@ def sample_from_gauss(std: float, direction: np.ndarray, rng: Optional[np.random
         Delta_X_m = x_abs
         Delta_Z_m = x_abs
         pauli_err = "I"
+        color_style = Back.RESET
     else:
         rx, ry, rz = direction
         x = rng.uniform()
@@ -136,16 +136,98 @@ def sample_from_gauss(std: float, direction: np.ndarray, rng: Optional[np.random
             Delta_X_m = np.abs(dist - x_abs)
             Delta_Z_m = np.abs(dist - x_abs)
             pauli_err = "X"
+            color_style = Back.RED
         elif x <= rx+rz:
             Delta_X_m = np.abs(dist - x_abs)
             Delta_Z_m = np.abs(dist - x_abs)
             pauli_err = "Z"
+            color_style = Back.BLUE
         else:
             Delta_X_m = np.abs(dist - x_abs)
             Delta_Z_m = np.abs(dist - x_abs)
             pauli_err = "Y"
+            color_style = Back.GREEN
     
+    # print(color_style + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
     return (pauli_err, Delta_X_m, Delta_Z_m)
+
+
+def sample_from_gauss_forced(std: float, probs: np.ndarray, rng: Optional[np.random.Generator]=None) -> Tuple:
+    """
+    Draw a sample from a normal distribution, and return a tuple containing the
+    measured deviation Delta_m and whether the sample produced an error.
+    
+    The sample produces an error if the measured value is outside the interval
+    [-sqrt(pi)/2, sqrt(pi)/2], as described in
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054.
+
+    Parameters
+    ----------
+    std : ndarray
+        3-dimensional array of the standard deviation in the X, Y and Z
+        directions respectively.
+    rng : np.random.Generator   
+        Random number generator to use for sampling. If None: Defaults to
+        np.random.default_rng().
+    
+    Returns
+    -------
+    ndarray
+        The minimized deviation Delta_m.
+    str
+        The error. 0 if no error occured, 1 if it did.
+    """
+    rng = np.random.default_rng() if rng is None else rng
+
+    dist = np.sqrt(np.pi) # Distance between q-values
+
+    pi, px, py, pz = probs
+    x = rng.uniform()
+
+    if x <= pi:
+        pauli_err = "I"
+        Delta_X_m = np.abs(forced_gauss(std, draw_correct=True, rng=rng))
+        Delta_Z_m = np.abs(forced_gauss(std, draw_correct=True, rng=rng))
+        color_style = Back.RESET
+    elif x <= pi+px:
+        pauli_err = "X"
+        Delta_X_m = np.abs(dist - forced_gauss(std, draw_correct=False, rng=rng))
+        Delta_Z_m = np.abs(forced_gauss(std, draw_correct=True, rng=rng))
+        color_style = Back.RED
+    elif x <= pi+px+py:
+        pauli_err = "Y"
+        Delta_X_m = np.abs(dist - forced_gauss(std, draw_correct=False, rng=rng))
+        Delta_Z_m = np.abs(dist - forced_gauss(std, draw_correct=False, rng=rng))
+        color_style = Back.GREEN
+    else:
+        pauli_err = "Z"
+        Delta_X_m = np.abs(forced_gauss(std, draw_correct=True, rng=rng))
+        Delta_Z_m = np.abs(dist - forced_gauss(std, draw_correct=False, rng=rng))
+        color_style = Back.BLUE
+    
+    # print(color_style + f"{Delta_X_m:^10.4f}|{Delta_Z_m:^10.4f}|{pauli_err:^10}" + Back.RESET)
+    return (pauli_err, Delta_X_m, Delta_Z_m)
+
+def forced_gauss(std: float, draw_correct: bool, rng: Optional[np.random.Generator]=None):
+    rng = np.random.default_rng() if rng is None else rng
+    
+    dist = np.sqrt(np.pi) # Distance between q-values
+    th = dist / 2.0 # Threshold for producing an error
+    
+    keep_sampling = True
+    while keep_sampling:
+        x = rng.normal(loc=0.0, scale=std)
+        x_abs = np.abs(x)
+        
+        if draw_correct == True:
+            condition = x_abs <= th
+        else:
+            condition = x_abs > th
+        
+        if condition:
+            keep_sampling = False
+
+    return x
 
 
 def gauss_likelihood(std:float) -> Callable[[float], float]:
@@ -196,7 +278,7 @@ def get_error_channel(std: float, Delta_m_arr: np.ndarray) -> np.ndarray:
     return error_channel
 
 
-class GaussPauliErrorModel3D(PauliErrorModel):
+class GaussPauliErrorModel_XZsampling(PauliErrorModel):
     """
     Error model for a QEC model with error channels produced by Gaussian likelihoods as
     described by Fukui, Tomita and Okamoto in
@@ -212,14 +294,46 @@ class GaussPauliErrorModel3D(PauliErrorModel):
         rng = np.random.default_rng() if rng is None else rng
 
         # ## Get the standard deviation of XYZ-errors as a 3-array.
-        # px, py, pz = error_rate * np.array(self.direction)
-        # qx = px + py
-        # qz = pz + py
-        # std_X = get_std(qx)
-        # std_Z = get_std(qz)
+        px, py, pz = error_rate * np.array(self.direction)
 
-        # self.std_X = std_X
-        # self.std_Z = std_Z
+        qx = px + py
+        qz = pz + py
+        std_X = get_std(qx)
+        std_Z = get_std(qz)
+
+        self.std_X = std_X
+        self.std_Z = std_Z
+
+        error_pauli = ""
+        Delta_X_m_arr = np.zeros(code.n)
+        Delta_Z_m_arr = np.zeros(code.n)
+        for i in range(code.n):
+            pauli, Delta_X_m, Delta_Z_m = sample_from_gauss3D(std_X, std_Z, rng)
+            Delta_X_m_arr[i] = Delta_X_m
+            Delta_Z_m_arr[i] = Delta_Z_m
+
+            error_pauli = error_pauli + pauli
+
+        self.Delta_X_m_arr = Delta_X_m_arr
+        self.Delta_Z_m_arr = Delta_Z_m_arr
+        error = pauli_to_bsf(error_pauli)
+
+        return error
+
+class GaussPauliErrorModel_gaussfirst(PauliErrorModel):
+    """
+    Error model for a QEC model with error channels produced by Gaussian likelihoods as
+    described by Fukui, Tomita and Okamoto in
+        
+    "High-Threshold Fault-Tolerant Quantum Computation with Analog Quantum Error Correction"
+
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
+    """
+    def generate(self, code: StabilizerCode, error_rate: float, rng=None):
+        """
+        Generate errors. Copied and slightly modified from PanQEC.
+        """
+        rng = np.random.default_rng() if rng is None else rng
 
         std = get_std(error_rate)
         self.std = std
@@ -229,7 +343,6 @@ class GaussPauliErrorModel3D(PauliErrorModel):
         Delta_Z_m_arr = np.zeros(code.n)
         for i in range(code.n):
             pauli, Delta_X_m, Delta_Z_m = sample_from_gauss(std, self.direction, rng)
-            # pauli, Delta_X_m, Delta_Z_m = sample_from_gauss3D(std_X, std_Z, rng)
             Delta_X_m_arr[i] = Delta_X_m
             Delta_Z_m_arr[i] = Delta_Z_m
 
@@ -242,7 +355,47 @@ class GaussPauliErrorModel3D(PauliErrorModel):
         return error
 
 
-class GaussBeliefPropagationLSDDecoder3D(BeliefPropagationLSDDecoder):
+class GaussPauliErrorModel_uniformfirst(PauliErrorModel):
+    """
+    Error model for a QEC model with error channels produced by Gaussian likelihoods as
+    described by Fukui, Tomita and Okamoto in
+        
+    "High-Threshold Fault-Tolerant Quantum Computation with Analog Quantum Error Correction"
+
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
+    """
+    def generate(self, code: StabilizerCode, error_rate: float, rng=None):
+        """
+        Generate errors. Copied and slightly modified from PanQEC.
+        """
+        rng = np.random.default_rng() if rng is None else rng
+
+        # ## Get the standard deviation of XYZ-errors as a 3-array.
+        px, py, pz = error_rate * np.array(self.direction)
+        pi = 1 - error_rate
+        probs = np.array([pi, px, py, pz])
+
+        std = get_std(error_rate)
+        self.std = std
+
+        error_pauli = ""
+        Delta_X_m_arr = np.zeros(code.n)
+        Delta_Z_m_arr = np.zeros(code.n)
+        for i in range(code.n):
+            pauli, Delta_X_m, Delta_Z_m = sample_from_gauss_forced(std, probs, rng)
+            Delta_X_m_arr[i] = Delta_X_m
+            Delta_Z_m_arr[i] = Delta_Z_m
+
+            error_pauli = error_pauli + pauli
+
+        self.Delta_X_m_arr = Delta_X_m_arr
+        self.Delta_Z_m_arr = Delta_Z_m_arr
+        error = pauli_to_bsf(error_pauli)
+
+        return error
+
+
+class GaussBeliefPropagationLSDDecoder_XZsampling(BeliefPropagationLSDDecoder):
     """
     Decoder for a QEC model with error channels produced by Gaussian likelihoods as
     described by Fukui, Tomita and Okamoto in
@@ -252,8 +405,123 @@ class GaussBeliefPropagationLSDDecoder3D(BeliefPropagationLSDDecoder):
     https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
     """
     def initialize_decoders(self):
-        # std_X = self.error_model.std_X
-        # std_Z = self.error_model.std_Z
+        std_X = self.error_model.std_X
+        std_Z = self.error_model.std_Z
+        Delta_X_m_arr = self.error_model.Delta_X_m_arr
+        Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
+        error_channel_X = get_error_channel(std_X, Delta_X_m_arr)
+        error_channel_Z = get_error_channel(std_Z, Delta_Z_m_arr)
+
+        is_css = self.code.is_css
+        if is_css:
+            self.z_decoder = BpLsdDecoder(
+                self.code.Hx,
+                # error_rate=0.0, ##### NOTE: Only considering X-errors so far!
+                error_channel=error_channel_Z,
+                max_iter=self._max_bp_iter,
+                bp_method=self._bp_method,
+                ms_scaling_factor=0.,
+                schedule="serial",
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order,          
+            )
+
+            self.x_decoder = BpLsdDecoder(
+                self.code.Hz,
+                error_channel=error_channel_X,
+                max_iter=self._max_bp_iter,
+                bp_method=self._bp_method,
+                ms_scaling_factor=0.,
+                schedule="serial",
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order
+            )
+
+        else:
+            raise ValueError("Gaussian decoder should be CSS.")
+            # self.decoder = BpLsdDecoder(
+            #     self.code.stabilizer_matrix,
+            #     error_channel=error_channel,
+            #     max_iter=self._max_bp_iter,
+            #     bp_method=self._bp_method,
+            #     ms_scaling_factor=0.,
+            #     lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+            #     lsd_order=self._osd_order
+            # )
+        self._initialized = True
+    
+
+    def decode(self, syndrome: np.ndarray, **kwargs) -> np.ndarray:
+        """Get X and Z corrections given code and measured syndrome."""
+
+        if not self._initialized:
+            self.initialize_decoders()
+
+        is_css = self.code.is_css
+        n_qubits = self.code.n
+        syndrome = np.array(syndrome, dtype=int)
+
+        if is_css:
+            syndrome_z = self.code.extract_z_syndrome(syndrome)
+            syndrome_x = self.code.extract_x_syndrome(syndrome)
+
+        pi, px, py, pz = self.get_probabilities()
+
+        std_X = self.error_model.std_X
+        std_Z = self.error_model.std_Z
+        Delta_X_m_arr = self.error_model.Delta_X_m_arr
+        Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
+        probabilities_x = get_error_channel(std_X, Delta_X_m_arr)
+        probabilities_z = get_error_channel(std_Z, Delta_Z_m_arr)
+
+        probabilities = np.hstack([probabilities_z, probabilities_x])
+
+        if is_css:
+            # Update probabilities (in case the distribution is new at each
+            # iteration)
+            self.x_decoder.update_channel_probs(probabilities_x)
+            self.z_decoder.update_channel_probs(probabilities_z)
+
+            # Decode Z errors
+            z_correction = self.z_decoder.decode(syndrome_x)
+
+            # Bayes update of the probability
+            if self._channel_update:
+                print("UPDATE PROB")
+                new_x_probs = self.update_probabilities(
+                    z_correction, px, py, pz, direction="z->x"
+                )
+                self.x_decoder.update_channel_probs(new_x_probs)
+
+            # Decode X errors
+            x_correction = self.x_decoder.decode(syndrome_z)
+
+            correction = np.concatenate([x_correction, z_correction])
+        else:
+            # Update probabilities (in case the distribution is new at each
+            # iteration)
+            self.decoder.update_channel_probs(probabilities)
+
+            # Decode all errors
+            self.decoder.decode(syndrome)
+            correction = self.decoder.osdw_decoding
+            correction = np.concatenate(
+                [correction[n_qubits:], correction[:n_qubits]]
+            )
+
+        return correction
+
+
+class GaussBeliefPropagationLSDDecoder_gaussfirst(BeliefPropagationLSDDecoder):
+    """
+    Decoder for a QEC model with error channels produced by Gaussian likelihoods as
+    described by Fukui, Tomita and Okamoto in
+        
+    "High-Threshold Fault-Tolerant Quantum Computation with Analog Quantum Error Correction"
+
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
+    """
+    def initialize_decoders(self):
         std_X = self.error_model.std
         std_Z = self.error_model.std
         Delta_X_m_arr = self.error_model.Delta_X_m_arr
@@ -316,8 +584,123 @@ class GaussBeliefPropagationLSDDecoder3D(BeliefPropagationLSDDecoder):
 
         pi, px, py, pz = self.get_probabilities()
 
-        # std_X = self.error_model.std_X
-        # std_Z = self.error_model.std_Z
+        std_X = self.error_model.std
+        std_Z = self.error_model.std
+        Delta_X_m_arr = self.error_model.Delta_X_m_arr
+        Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
+        probabilities_x = get_error_channel(std_X, Delta_X_m_arr)
+        probabilities_z = get_error_channel(std_Z, Delta_Z_m_arr)
+
+        probabilities = np.hstack([probabilities_z, probabilities_x])
+
+        if is_css:
+            # Update probabilities (in case the distribution is new at each
+            # iteration)
+            self.x_decoder.update_channel_probs(probabilities_x)
+            self.z_decoder.update_channel_probs(probabilities_z)
+
+            # Decode Z errors
+            z_correction = self.z_decoder.decode(syndrome_x)
+
+            # Bayes update of the probability
+            if self._channel_update:
+                print("UPDATE PROB")
+                new_x_probs = self.update_probabilities(
+                    z_correction, px, py, pz, direction="z->x"
+                )
+                self.x_decoder.update_channel_probs(new_x_probs)
+
+            # Decode X errors
+            x_correction = self.x_decoder.decode(syndrome_z)
+
+            correction = np.concatenate([x_correction, z_correction])
+        else:
+            # Update probabilities (in case the distribution is new at each
+            # iteration)
+            self.decoder.update_channel_probs(probabilities)
+
+            # Decode all errors
+            self.decoder.decode(syndrome)
+            correction = self.decoder.osdw_decoding
+            correction = np.concatenate(
+                [correction[n_qubits:], correction[:n_qubits]]
+            )
+
+        return correction
+
+
+class GaussBeliefPropagationLSDDecoder_uniformfirst(BeliefPropagationLSDDecoder):
+    """
+    Decoder for a QEC model with error channels produced by Gaussian likelihoods as
+    described by Fukui, Tomita and Okamoto in
+        
+    "High-Threshold Fault-Tolerant Quantum Computation with Analog Quantum Error Correction"
+
+    https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
+    """
+    def initialize_decoders(self):
+        std_X = self.error_model.std
+        std_Z = self.error_model.std
+        Delta_X_m_arr = self.error_model.Delta_X_m_arr
+        Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
+        error_channel_X = get_error_channel(std_X, Delta_X_m_arr)
+        error_channel_Z = get_error_channel(std_Z, Delta_Z_m_arr)
+
+        is_css = self.code.is_css
+        if is_css:
+            self.z_decoder = BpLsdDecoder(
+                self.code.Hx,
+                # error_rate=0.0, ##### NOTE: Only considering X-errors so far!
+                error_channel=error_channel_Z,
+                max_iter=self._max_bp_iter,
+                bp_method=self._bp_method,
+                ms_scaling_factor=0.,
+                schedule="serial",
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order,          
+            )
+
+            self.x_decoder = BpLsdDecoder(
+                self.code.Hz,
+                error_channel=error_channel_X,
+                max_iter=self._max_bp_iter,
+                bp_method=self._bp_method,
+                ms_scaling_factor=0.,
+                schedule="serial",
+                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+                lsd_order=self._osd_order
+            )
+
+        else:
+            raise ValueError("Gaussian decoder should be CSS.")
+            # self.decoder = BpLsdDecoder(
+            #     self.code.stabilizer_matrix,
+            #     error_channel=error_channel,
+            #     max_iter=self._max_bp_iter,
+            #     bp_method=self._bp_method,
+            #     ms_scaling_factor=0.,
+            #     lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
+            #     lsd_order=self._osd_order
+            # )
+        self._initialized = True
+    
+
+    def decode(self, syndrome: np.ndarray, **kwargs) -> np.ndarray:
+        """Get X and Z corrections given code and measured syndrome."""
+
+        if not self._initialized:
+            self.initialize_decoders()
+
+        is_css = self.code.is_css
+        n_qubits = self.code.n
+        syndrome = np.array(syndrome, dtype=int)
+
+        if is_css:
+            syndrome_z = self.code.extract_z_syndrome(syndrome)
+            syndrome_x = self.code.extract_x_syndrome(syndrome)
+
+        pi, px, py, pz = self.get_probabilities()
+
         std_X = self.error_model.std
         std_Z = self.error_model.std
         Delta_X_m_arr = self.error_model.Delta_X_m_arr
