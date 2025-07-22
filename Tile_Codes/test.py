@@ -41,7 +41,7 @@ gauss_model_uniformfirst = GaussPauliErrorModel_uniformfirst(0.3, 0.2, 0.5)
 gauss_model_gaussfirst = GaussPauliErrorModel_gaussfirst(0.3, 0.2, 0.5)
 error_models = [pauli_model, gauss_model_XZsampling, gauss_model_uniformfirst, gauss_model_gaussfirst]
 
-L_vals = [12]
+L_vals = [8, 12, 16]
 p_vals = np.linspace(0.001, 0.98, 20)
 
 # pauli_json = "TEMP_json_pauli.json"
@@ -140,34 +140,139 @@ for json_path in json_paths:
 
 # plt.figure()
 # analyses[0].calculate_thresholds()
-colors = ["magenta", "blue", "red", "green"]
-plt.figure()
-plt.title("Logical error rate for X (dashed), Z (dotted), and combined (solid) sector. ")
-plt.xlabel("Physical error rate $p$")
-plt.ylabel("Logical error rate $p_L$")
+# colors = ["magenta", "blue", "red", "green"]
+# plt.figure()
+# plt.title("Logical error rate for X (dashed), Z (dotted), and combined (solid) sector. ")
+# plt.xlabel("Physical error rate $p$")
+# plt.ylabel("Logical error rate $p_L$")
 
+# k = code.k
+# pseudo_threshold = 1-(1-p_vals)**k
+# plt.plot(p_vals, pseudo_threshold, color="black", linestyle="dashed", label="Pseudo-Threshold")
+# # max_ind = np.argmin(np.abs(p_vals - 0.7))
+# max_ind = len(p_vals)
+# for analysis, name, color in zip(analyses, names, colors):
+#     analysis.calculate_sector_thresholds() # Necessary for p_est_X and p_est_Z to be available
+#     results = analysis.get_results()
+#     p_vals = results["error_rate"]
+#     p_est = results["p_est"]
+#     p_se = results["p_se"]
+#     p_est_X = results["p_est_X"]
+#     p_est_Z = results["p_est_Z"]
+    
+#     L_num = len(L_vals)
+#     p_num = len(p_vals)
+#     L_slice_ind = int(p_num / L_num)
+#     for i, L in enumerate(L_vals):
+#         start_ind = i*L_slice_ind
+#         end_ind = (i+1)*L_slice_ind
+#         plt.plot(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], "o-", color=color, label=name)
+#         plt.errorbar(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], yerr=p_se[start_ind:end_ind], capsize=5, color=color)
+
+#     # plt.plot(p_vals[:max_ind], p_est_X[:max_ind], color=color, linestyle="dashed")
+#     # plt.plot(p_vals[:max_ind], p_est_Z[:max_ind], color=color, linestyle="dotted")
+
+# plt.legend()
+# plt.savefig(plot_path, bbox_inches="tight")
+
+import pandas as pd
+import seaborn as sns
+
+colors = ["magenta", "blue", "red", "green"]
 k = code.k
 pseudo_threshold = 1-(1-p_vals)**k
-plt.plot(p_vals, pseudo_threshold, color="black", linestyle="dashed", label="Pseudo-Threshold")
-# max_ind = np.argmin(np.abs(p_vals - 0.7))
-max_ind = -1
-for analysis, name, color in zip(analyses, names, colors):
+
+results_list = []
+for name, analysis in zip(names, analyses):
     analysis.calculate_sector_thresholds() # Necessary for p_est_X and p_est_Z to be available
-    results = analysis.get_results()
-    p_vals = results["error_rate"]
-    p_est = results["p_est"]
-    p_se = results["p_se"]
-    p_est_X = results["p_est_X"]
-    p_est_Z = results["p_est_Z"]
+    results_i = analysis.get_results()
+    results_i["name"] = name
+    results_list.append(results_i)
 
-    plt.plot(p_vals[:max_ind], p_est[:max_ind], "o-", color=color, label=name)
-    plt.errorbar(p_vals[:max_ind], p_est[:max_ind], yerr=p_se[:max_ind], capsize=5, color=color)
+results = pd.concat(results_list)
+results["L"] = results["code_params"].apply(lambda d: d.get("L_x")) # Extract L-value to its own column
 
-    plt.plot(p_vals[:max_ind], p_est_X[:max_ind], color=color, linestyle="dashed")
-    plt.plot(p_vals[:max_ind], p_est_Z[:max_ind], color=color, linestyle="dotted")
+plt.figure()
 
-plt.legend()
-plt.savefig(plot_path, bbox_inches="tight")
+# Filter results:
+max_p = 0.7
+if max_p is not None:
+    results = results[results["error_rate"] <= max_p]
+
+sns.set_theme()
+are_subplots = False
+if are_subplots:
+    g = sns.relplot(data=results, kind="line", x="error_rate", y="p_est", style="L", col="name")
+else:
+    g = sns.relplot(data=results, kind="line", x="error_rate", y="p_est", style="L", hue="name")
+
+# Build the color mapping used by Seaborn
+palette = sns.color_palette()  # default palette
+unique_names = results["name"].unique()
+color_map = dict(zip(unique_names, palette))  # maps name → color
+
+# Add error bars with matching color
+if are_subplots:
+    for ax, (name_val, subdata) in zip(g.axes.flat, results.groupby("name")):
+        for L_val, group in subdata.groupby("L"):
+            ax.errorbar(
+                group["error_rate"],
+                group["p_est"],
+                yerr=group["p_se"],
+                fmt='none',
+                capsize=3,
+                alpha=0.7,
+                ecolor="gray"
+            )
+else:
+    for ax in g.axes.flat:
+        for (L_val, name_val), group in results.groupby(["L", "name"]):
+            ax.errorbar(
+                group["error_rate"],
+                group["p_est"],
+                yerr=group["p_se"],
+                fmt='none',
+                capsize=3,
+                alpha=0.7,
+                ecolor=color_map[name_val]
+            )
+
+g.set(
+    title="Logical error rate $p_L$ as a function of physical error rate $p$.",
+    xlabel="Physical error rate $p$",
+    ylabel="Logical error rate $p_L$"
+)
+g.savefig(plot_path)
+# plt.legend()
+# plt.savefig(plot_path, bbox_inches="tight")
+
+# plt.plot(p_vals, pseudo_threshold, color="black", linestyle="dashed", label="Pseudo-Threshold")
+# # max_ind = np.argmin(np.abs(p_vals - 0.7))
+# max_ind = len(p_vals)
+# for analysis, name, color in zip(analyses, names, colors):
+#     analysis.calculate_sector_thresholds() # Necessary for p_est_X and p_est_Z to be available
+#     results = analysis.get_results()
+#     p_vals = results["error_rate"]
+#     p_est = results["p_est"]
+#     p_se = results["p_se"]
+#     p_est_X = results["p_est_X"]
+#     p_est_Z = results["p_est_Z"]
+    
+#     L_num = len(L_vals)
+#     p_num = len(p_vals)
+#     L_slice_ind = int(p_num / L_num)
+#     for i, L in enumerate(L_vals):
+#         start_ind = i*L_slice_ind
+#         end_ind = (i+1)*L_slice_ind
+#         plt.plot(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], "o-", color=color, label=name)
+#         plt.errorbar(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], yerr=p_se[start_ind:end_ind], capsize=5, color=color)
+
+#     # plt.plot(p_vals[:max_ind], p_est_X[:max_ind], color=color, linestyle="dashed")
+#     # plt.plot(p_vals[:max_ind], p_est_Z[:max_ind], color=color, linestyle="dotted")
+
+# plt.legend()
+# plt.savefig(plot_path, bbox_inches="tight")
+
 
 
 # results_pauli = analysis_pauli.get_results()
