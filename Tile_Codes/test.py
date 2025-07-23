@@ -138,42 +138,42 @@ for json_path in json_paths:
 
 # fig.savefig(plot_path, bbox_inches="tight")
 
-# plt.figure()
-# analyses[0].calculate_thresholds()
-# colors = ["magenta", "blue", "red", "green"]
-# plt.figure()
-# plt.title("Logical error rate for X (dashed), Z (dotted), and combined (solid) sector. ")
-# plt.xlabel("Physical error rate $p$")
-# plt.ylabel("Logical error rate $p_L$")
+plt.figure()
+analyses[0].calculate_thresholds()
+colors = ["magenta", "blue", "red", "green"]
+plt.figure()
+plt.title("Logical error rate for X (dashed), Z (dotted), and combined (solid) sector. ")
+plt.xlabel("Physical error rate $p$")
+plt.ylabel("Logical error rate $p_L$")
 
-# k = code.k
-# pseudo_threshold = 1-(1-p_vals)**k
-# plt.plot(p_vals, pseudo_threshold, color="black", linestyle="dashed", label="Pseudo-Threshold")
-# # max_ind = np.argmin(np.abs(p_vals - 0.7))
-# max_ind = len(p_vals)
-# for analysis, name, color in zip(analyses, names, colors):
-#     analysis.calculate_sector_thresholds() # Necessary for p_est_X and p_est_Z to be available
-#     results = analysis.get_results()
-#     p_vals = results["error_rate"]
-#     p_est = results["p_est"]
-#     p_se = results["p_se"]
-#     p_est_X = results["p_est_X"]
-#     p_est_Z = results["p_est_Z"]
+k = code.k
+pseudo_threshold = 1-(1-p_vals)**k
+plt.plot(p_vals, pseudo_threshold, color="black", linestyle="dashed", label="Pseudo-Threshold")
+# max_ind = np.argmin(np.abs(p_vals - 0.7))
+max_ind = len(p_vals)
+for analysis, name, color in zip(analyses, names, colors):
+    analysis.calculate_sector_thresholds() # Necessary for p_est_X and p_est_Z to be available
+    results = analysis.get_results()
+    p_vals = results["error_rate"]
+    p_est = results["p_est"]
+    p_se = results["p_se"]
+    p_est_X = results["p_est_X"]
+    p_est_Z = results["p_est_Z"]
     
-#     L_num = len(L_vals)
-#     p_num = len(p_vals)
-#     L_slice_ind = int(p_num / L_num)
-#     for i, L in enumerate(L_vals):
-#         start_ind = i*L_slice_ind
-#         end_ind = (i+1)*L_slice_ind
-#         plt.plot(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], "o-", color=color, label=name)
-#         plt.errorbar(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], yerr=p_se[start_ind:end_ind], capsize=5, color=color)
+    L_num = len(L_vals)
+    p_num = len(p_vals)
+    L_slice_ind = int(p_num / L_num)
+    for i, L in enumerate(L_vals):
+        start_ind = i*L_slice_ind
+        end_ind = (i+1)*L_slice_ind
+        plt.plot(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], "o-", color=color, label=name)
+        plt.errorbar(p_vals[start_ind:end_ind], p_est[start_ind:end_ind], yerr=p_se[start_ind:end_ind], capsize=5, color=color)
 
-#     # plt.plot(p_vals[:max_ind], p_est_X[:max_ind], color=color, linestyle="dashed")
-#     # plt.plot(p_vals[:max_ind], p_est_Z[:max_ind], color=color, linestyle="dotted")
+    # plt.plot(p_vals[:max_ind], p_est_X[:max_ind], color=color, linestyle="dashed")
+    # plt.plot(p_vals[:max_ind], p_est_Z[:max_ind], color=color, linestyle="dotted")
 
-# plt.legend()
-# plt.savefig(plot_path, bbox_inches="tight")
+plt.legend()
+plt.savefig(plot_path, bbox_inches="tight")
 
 import pandas as pd
 import seaborn as sns
@@ -192,7 +192,7 @@ for name, analysis in zip(names, analyses):
 results = pd.concat(results_list)
 results["L"] = results["code_params"].apply(lambda d: d.get("L_x")) # Extract L-value to its own column
 
-plt.figure()
+# plt.figure()
 
 # Filter results:
 max_p = 0.7
