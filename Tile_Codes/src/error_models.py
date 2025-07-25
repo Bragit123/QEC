@@ -277,7 +277,7 @@ def plot_error_rates():
             axs[2].legend()
 
     fig.supxlabel("Error rate input $p_{in}$")
-    fig.savefig("gauss_error_test.pdf", bbox_inches="tight")
+    fig.savefig("../Plots/gauss_error_test.pdf", bbox_inches="tight")
 
 
 if __name__ == "__main__":

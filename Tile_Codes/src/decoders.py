@@ -9,7 +9,7 @@ from colorama import Back, Style
 
 def gauss_likelihood(std:float) -> Callable[[float], float]:
     """
-    Gaussian distribution.
+    Returns a Gaussian distribution function with the given standard deviation.
 
     Parameters
     ----------
@@ -56,6 +56,10 @@ def get_error_channel(std: float, Delta_m_arr: np.ndarray) -> np.ndarray:
 
 
 class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
+    """
+    Largely copied from PanQEC's BeliefPropagationOSDDecoder, but changed from
+    OSD to LSD.
+    """
     def initialize_decoders(self):
         is_css = self.code.is_css
 

@@ -19,29 +19,42 @@ from panqec.decoders import BaseDecoder, BeliefPropagationOSDDecoder
 from panqec.simulation import DirectSimulation, BatchSimulation
 from panqec.analysis import Analysis
 
-OUTPUT_DIR = "Simulation_Outputs/" # Directory to store JSON files containing the output from simulations.
-PLOT_DIR = "Plots/" # Directory to store threshold plots created from the simulations.
+OUTPUT_DIR = "../Simulation_Outputs/" # Directory to store JSON files containing the output from simulations.
+PLOT_DIR = "../Plots/" # Directory to store threshold plots created from the simulations.
 
-def get_sim_name(
-        sim_input: dict
-):
+def get_sim_name(sim_input: dict) -> str:
     """
-    Returns a name that is used for the output-data and plot files, such as "thresholds_error_0.5_0.0_0.5__L_8_12_16_20__p_0.001_0.3_20__trials_1000".
+    Returns a name that is used for the JSON files containing the simulation output.
 
     Parameters
     ----------
-    Code : StabilizerCode class
-        The Tile Code to run the simulation for. This must be a subclass
-        of the TileCode class.
     sim_input : dict
         Dictionary of simulation parameters. Must include the following:
-        - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
-        - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
-        - "n_p" = Number of p-values to include in the simulation.
-        - "L_vals" = List of code-sizes to consider.
-        - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
-    Decoder : BaseDecoder class
-        Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
+        - "Code" (StabilizerCode) = The QEC code (class, not object) to use in the simulation.
+        - "error_model" (str) = The name of the error model to use. "pauli" for PauliErrorModel
+        and "gauss" for GaussPauliErrorModel.
+        - "decoder" (str) = The name of the decoder to use. "bposd" for OSD- and "bplsd" for LSD-
+        belief propagation. Will use regular or Gaussian depending on the specified error model.
+        - "r_xyz" (list) = List containing the r_x, r_y and r_z values to give as input to the
+        error model. These are the distribution of how often the differen type of errors will
+        occur, and must therefore sum to one.
+        - "p_vals" (ndarray) = Array of error rates to simulate for.
+        - "L_vals" (list) = List of code sizes to consider.
+        - "n_trials" (int) = Number of Monte Carlo simulations to run the simulation for.
+    
+    Returns
+    -------
+    str
+        Name of the simulation, containing information about all the different input
+        parameters. This is used to name the JSON files produced from the simulation.
+        
+        Example name:
+        toric__pauli__bplsd__r_0.5_0.0_0.5__L_8_12_16__p_0.001_0.5_20__t_500.json
+        
+        This name tells us that the simulation is run on the Toric2DCode, using the
+        PauliErrorModel and BeliefPropagationLSDDecoder with r_x=0.5, r_y=0.0,
+        r_z=0.5; going through the L values 8, 12 and 16; for 20 error rates p from
+        0.001 to 0.5; and running 500 Monte Carlo simulations.
     """
     ## Get code name
     code = sim_input["Code"].__name__
@@ -68,7 +81,7 @@ def get_sim_name(
     p_min = np.min(p_vals)
     p_max = np.max(p_vals)
     n_p = len(p_vals)
-    p_text = f"p_{p_min:.2}_{p_max:.2}_{n_p}"
+    p_text = f"r_{p_min:.2}_{p_max:.2}_{n_p}"
     
     trials_text = f"t_{sim_input["n_trials"]}"
 
@@ -78,28 +91,30 @@ def get_sim_name(
     return sim_name
 
 
-def run_single_simulation(
-        sim_input: dict
-):
+def run_single_simulation(sim_input: dict) -> str:
     """
-    Runs a threshold simulation, and stores it into a JSON file.
+    Runs a single simulation, and stores it into a JSON file.
 
     Parameters
     ----------
-    Code : StabilizerCode class
-        The Tile Code to run the simulation for. This must be a subclass
-        of the TileCode class.
     sim_input : dict
         Dictionary of simulation parameters. Must include the following:
-        - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
-        - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
-        - "n_p" = Number of p-values to include in the simulation.
-        - "L_vals" = List of code-sizes to consider.
-        - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
-    Decoder : BaseDecoder class
-        Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
-    p_logarithmic : bool
-        If True, p_values are distributed logarithmically instead of linearly.
+        - "Code" (StabilizerCode) = The QEC code (class, not object) to use in the simulation.
+        - "error_model" (str) = The name of the error model to use. "pauli" for PauliErrorModel
+        and "gauss" for GaussPauliErrorModel.
+        - "decoder" (str) = The name of the decoder to use. "bposd" for OSD- and "bplsd" for LSD-
+        belief propagation. Will use regular or Gaussian depending on the specified error model.
+        - "r_xyz" (list) = List containing the r_x, r_y and r_z values to give as input to the
+        error model. These are the distribution of how often the differen type of errors will
+        occur, and must therefore sum to one.
+        - "p_vals" (ndarray) = Array of error rates to simulate for.
+        - "L_vals" (list) = List of code sizes to consider.
+        - "n_trials" (int) = Number of Monte Carlo simulations to run the simulation for.
+    
+    Returns
+    -------
+    str
+        Path to the JSON file where the output from the simulation is stored.
     """
     ## Extract and check validity of code
     Code = sim_input["Code"]
@@ -172,7 +187,51 @@ def run_single_simulation(
     return output_path
 
 
-def split_inputs(sim_inputs: dict):
+def split_inputs(sim_inputs: dict) -> List[dict]:
+    """
+    Takes a dictionary containing simulation inputs for multiple simulations, and returns
+    a list of dictionaries containing the simulation inputs for a single simulation.
+
+    If one or more of the values in sim_inputs are lists (not including the code sizes
+    "L_vals" or the error distribution "r_xyz", which are lists also for single
+    simulations), this function considers all possible combinations of them and creates
+    input dictionaries for each simulation.
+
+    For instance: If the value of "Code" is [Code1, Code2, Code3] and the value of
+    "error_model" is ["pauli", "gauss"], but all other entries are as usual for singular
+    simulations, the function will return a list of six dictionaries, where "Code" and
+    "error_model" takes the following combinations:
+    
+    - Code1, "pauli"
+    - Code1, "gauss"
+    - Code2, "pauli"
+    - Code2, "gauss"
+    - Code3, "pauli"
+    - Code3, "gauss"
+
+    and the remaining parameters are equal for all six dictionaries.
+
+    Parameters
+    ----------
+    sim_input : dict
+        Dictionary of simulation parameters. Must include the following:
+        - "Code" (StabilizerCode or List) = The QEC code (class, not object) to use in the simulation.
+        - "error_model" (str or List) = The name of the error model to use. "pauli" for PauliErrorModel
+        and "gauss" for GaussPauliErrorModel.
+        - "decoder" (str or List) = The name of the decoder to use. "bposd" for OSD- and "bplsd" for LSD-
+        belief propagation. Will use regular or Gaussian depending on the specified error model.
+        - "r_xyz" (list) = List containing the r_x, r_y and r_z values to give as input to the
+        error model. These are the distribution of how often the differen type of errors will
+        occur, and must therefore sum to one.
+        - "p_vals" (ndarray) = Array of error rates to simulate for.
+        - "L_vals" (list) = List of code sizes to consider.
+        - "n_trials" (int or List) = Number of Monte Carlo simulations to run the simulation for.
+    
+    Returns
+    -------
+    List[dict]
+        List of dictionaries, each containing the input parameters for a single simulation.
+    """
     varying_keys = []
     varying_values = []
     fixed_keys = []
@@ -204,9 +263,35 @@ def split_inputs(sim_inputs: dict):
     return sim_input_list
     
 
-def run_simulations(
-        sim_inputs: dict
-):
+def run_simulations(sim_inputs: dict) -> List[str]:
+    """
+    Runs simulation(s), and stores the output from each simulation into a separate
+    JSON file. If one or more of the values in sim_inputs are lists (not including
+    the code sizes "L_vals" or the error distribution "r_xyz", which are lists also
+    for single simulations), this function considers all possible combinations of
+    them and runs a separate simulation for each combination.
+
+    Parameters
+    ----------
+    sim_input : dict
+        Dictionary of simulation parameters. Must include the following:
+        - "Code" (StabilizerCode or List) = The QEC code (class, not object) to use in the simulation.
+        - "error_model" (str or List) = The name of the error model to use. "pauli" for PauliErrorModel
+        and "gauss" for GaussPauliErrorModel.
+        - "decoder" (str or List) = The name of the decoder to use. "bposd" for OSD- and "bplsd" for LSD-
+        belief propagation. Will use regular or Gaussian depending on the specified error model.
+        - "r_xyz" (list) = List containing the r_x, r_y and r_z values to give as input to the
+        error model. These are the distribution of how often the differen type of errors will
+        occur, and must therefore sum to one.
+        - "p_vals" (ndarray) = Array of error rates to simulate for.
+        - "L_vals" (list) = List of code sizes to consider.
+        - "n_trials" (int or List) = Number of Monte Carlo simulations to run the simulation for.
+    
+    Returns
+    -------
+    List[str]
+        List of paths to the JSON files where the output from each simulation is stored.
+    """
     sim_input_list = split_inputs(sim_inputs)
     n_sims = len(sim_input_list)
 
@@ -219,9 +304,22 @@ def run_simulations(
     return json_paths
 
 
-def extract_data(
-        json_paths: Union[str, List[str]]
-):  
+def extract_data(json_paths: Union[str, List[str]]) -> pd.DataFrame:
+    """
+    Extracts the data from several JSON files, and returns them as a single Pandas
+    DataFrame. The resulting DataFrame also includes a column labeled "L" for the
+    code sizes at each data point.
+
+    Parameters
+    ----------
+    json_paths : str or List[str]
+        The JSON path(s) to extract data from.
+    
+    Returns
+    -------
+    DataFrame
+        The Data from the JSON paths as a Pandas DataFrame.
+    """
     if isinstance(json_paths, str):
         json_paths = [json_paths]
     
@@ -249,30 +347,35 @@ def plot_results(
         style: Optional[str] = None,
         hue: Optional[str] = None,
         col: Optional[str] = None
-):
+) -> str:
     """
-    Analyze output from a simulation, and create the threshold plots. The resulting plot is saved in the plot directory.
+    Analyze output from a simulation, and create the threshold plots. The resulting
+    plot is saved in the plot directory.
 
     Parameters
     ----------
-    Code : Stabilizer class
-        The Tile Code to run the simulation for. This must be a subclass
-        of the TileCode class.
-    sim_input : dict
-        Dictionary of simulation parameters. Must include the following:
-        - "E_X", "E_Y", "E_Z" = Distribution of X,Y and Z-errors. Must sum to 1.
-        - "p_min", "p_max" = Min- and max-values for the error probability p of physical qubits.
-        - "n_p" = Number of p-values to include in the simulation.
-        - "L_vals" = List of code-sizes to consider.
-        - "n_trials" = Number of Monte Carlo iterations to run the simulation for.
-    Decoder : BaseDecoder class
-        Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
-    xscale : str
-        Input to matplotlibs ax.set_xscale().
-    yscale : str
-        Input to matplotlibs ax.set_yscale().
-    include_threshold_estimate : bool
-        Passed into Analysis.plot_thresholds(). If True: computes and plots threshold region.
+    data : DataFrame
+        The data to plot from. This would be the DataFrame acquired by running
+        extract_data() on the JSON files produced by the simulation.
+    filename : str
+        Name of the pdf file to where the produced plot is saved.
+    style : str
+        Column label of the data that should decide the style of the lines in
+        the plot. If None: the plot is not divided into styles.
+        See the Seaborn documentation for more information.
+    hue : str
+        Column label of the data that should decide the hue (color) of the lines
+        in the plot. If None: the plot is not divided into colors.
+        See the Seaborn documentation for more information.
+    col : str
+        Column label of the data that should decide the columns of the subplots
+        in the plot. If None: the plot is not divided into subplots.
+        See the Seaborn documentation for more information.
+    
+    Returns
+    -------
+    str
+        The path to the saved plot.
     """
     if not filename.endswith(".pdf"):
         filename = filename + ".pdf"
