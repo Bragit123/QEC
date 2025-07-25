@@ -8,7 +8,6 @@ from bposd.css import css_code
 type Coordinate = tuple[int]
 
 ##### Abstract class #####
-
 class TileCode(StabilizerCode):
     """
     Abstract class for Tile Codes, a way of constructing quantum codes presented by
@@ -336,7 +335,6 @@ class TileCode_B4_W8(TileCode):
         (1,6),
         (6,7)
     ]
-
 
 
 ##### Run the GUI if __main__
