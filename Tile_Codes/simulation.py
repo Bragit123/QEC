@@ -20,7 +20,7 @@ from panqec.simulation import DirectSimulation, BatchSimulation
 from panqec.analysis import Analysis
 
 OUTPUT_DIR = "Simulation_Outputs/" # Directory to store JSON files containing the output from simulations.
-PLOT_DIR = "Threshold_Plots/" # Directory to store threshold plots created from the simulations.
+PLOT_DIR = "Plots/" # Directory to store threshold plots created from the simulations.
 
 def get_sim_name(
         sim_input: dict
@@ -57,14 +57,18 @@ def get_sim_name(
     decoder = sim_input["decoder"]
     
     ## Get text for remaining parameters
-    E_X, E_Y, E_Z = (sim_input["E_X"], sim_input["E_Y"], sim_input["E_Z"])
-    error_text = f"e_{E_X:.2}_{E_Y:.2}_{E_Z:.2}"
+    r_x, r_y, r_z = sim_input["r_xyz"]
+    error_text = f"e_{r_x:.2}_{r_y:.2}_{r_z:.2}"
     
     L_text = f"L"
     for L in sim_input["L_vals"]:
         L_text = L_text + "_" + str(L)
 
-    p_text = f"p_{sim_input["p_min"]:.2}_{sim_input["p_max"]:.2}_{sim_input["n_p"]}"
+    p_vals = sim_input["p_vals"]
+    p_min = np.min(p_vals)
+    p_max = np.max(p_vals)
+    n_p = len(p_vals)
+    p_text = f"p_{p_min:.2}_{p_max:.2}_{n_p}"
     
     trials_text = f"t_{sim_input["n_trials"]}"
 
@@ -75,8 +79,7 @@ def get_sim_name(
 
 
 def run_single_simulation(
-        sim_input: dict,
-        p_logarithmic: Optional[bool] = False
+        sim_input: dict
 ):
     """
     Runs a threshold simulation, and stores it into a JSON file.
@@ -129,19 +132,13 @@ def run_single_simulation(
         raise ValueError(f"sim_input['error_model'] must be either 'pauli' or 'gauss'. Got '{error_model_name}'.")
 
     ## Extract input parameters
-    E_X, E_Y, E_Z = (sim_input["E_X"], sim_input["E_Y"], sim_input["E_Z"])
-    p_min = sim_input["p_min"]
-    p_max = sim_input["p_max"]
-    n_p = sim_input["n_p"]
+    r_x, r_y, r_z = sim_input["r_xyz"]
+    p_vals = sim_input["p_vals"]
     L_vals = sim_input["L_vals"]
     n_trials = sim_input["n_trials"]
 
     ## Set remaining parameters
-    error_model = Error_Model(E_X, E_Y, E_Z)
-    if p_logarithmic:
-        p_vals = np.logspace(np.log10(p_min), np.log10(p_max), n_p)
-    else:
-        p_vals = np.linspace(p_min, p_max, n_p)
+    error_model = Error_Model(r_x, r_y, r_z)
 
     sim_name = get_sim_name(sim_input)
     output_path = OUTPUT_DIR + sim_name + ".json"
@@ -176,14 +173,13 @@ def run_single_simulation(
 
 
 def split_inputs(sim_inputs: dict):
-    # return sim_input_list
     varying_keys = []
     varying_values = []
     fixed_keys = []
     fixed_values = []
     for k, v in sim_inputs.items():
-        if isinstance(v, list) and k != "L_vals":
-            # Check if one of the inputs except L_vals is a list
+        if isinstance(v, list) and not (k in ["L_vals", "r_xyz"]):
+            # Check if one of the inputs except L_vals and r_xyz is a list
             varying_keys.append(k)
             varying_values.append(v)
         else:
@@ -209,8 +205,7 @@ def split_inputs(sim_inputs: dict):
     
 
 def run_simulations(
-        sim_inputs: dict,
-        p_logarithmic: bool = False
+        sim_inputs: dict
 ):
     sim_input_list = split_inputs(sim_inputs)
     n_sims = len(sim_input_list)
@@ -218,7 +213,7 @@ def run_simulations(
     json_paths = []
     for i, sim_input in enumerate(sim_input_list):
         print(f"Running simulation {i+1}/{n_sims}:")
-        json_path = run_single_simulation(sim_input, p_logarithmic)
+        json_path = run_single_simulation(sim_input)
         json_paths.append(json_path)
     
     return json_paths
@@ -307,6 +302,7 @@ def plot_results(
     )
     g.figure.tight_layout()
 
+
     g.savefig(plot_path, bbox_inches="tight")
 
     return plot_path
@@ -320,18 +316,15 @@ if __name__ == "__main__":
         "gauss"
     ]
     decoders = "bplsd"
+    p_vals = np.linspace(0.001, 0.5, 5)
     sim_inputs = {
         "Code": Codes,
         "error_model": error_models,
         "decoder": decoders,
-        "E_X": 0.5,
-        "E_Y": 0.0,
-        "E_Z": 0.5,
-        "p_min": 0.001,
-        "p_max": 0.5,
-        "n_p": 20,
-        "L_vals": [8, 12, 16],
-        "n_trials": 500
+        "r_xyz": [0.5, 0.0, 0.5],
+        "p_vals": p_vals,
+        "L_vals": [8, 16],
+        "n_trials": 10
     }
 
     # Run and analyze simulation
@@ -344,8 +337,9 @@ if __name__ == "__main__":
 
     json_paths = run_simulations(sim_inputs)
     
-    filename = "gauss_test_new"
     data = extract_data(json_paths)
+    
+    filename = "gauss_test"
     plot_path = plot_results(data, filename, style="L", hue="error_model", col="code")
 
     print(f"Results plotted in {plot_path}")
