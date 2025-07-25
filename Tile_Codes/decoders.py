@@ -160,15 +160,18 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
     https://journals.aps.org/prx/pdf/10.1103/PhysRevX.8.021054
     """
     def initialize_decoders(self):
-        std = self.error_model.std
-        Delta_m_arr = self.error_model.Delta_m_arr
-        error_channel = get_error_channel(std, Delta_m_arr)
+        std_X = self.error_model.std_X
+        std_Z = self.error_model.std_Z
+        Delta_X_m_arr = self.error_model.Delta_X_m_arr
+        Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
+        error_channel_X = get_error_channel(std_X, Delta_X_m_arr)
+        error_channel_Z = get_error_channel(std_Z, Delta_Z_m_arr)
 
         is_css = self.code.is_css
         if is_css:
             self.z_decoder = BpLsdDecoder(
                 self.code.Hx,
-                error_rate=0.0, ##### NOTE: Only considering X-errors so far!
+                error_channel=error_channel_Z,
                 max_iter=self._max_bp_iter,
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
@@ -179,7 +182,7 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
             self.x_decoder = BpLsdDecoder(
                 self.code.Hz,
-                error_channel = error_channel,
+                error_channel=error_channel_X,
                 max_iter=self._max_bp_iter,
                 bp_method=self._bp_method,
                 ms_scaling_factor=0.,
@@ -189,15 +192,8 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
             )
 
         else:
-            self.decoder = BpLsdDecoder(
-                self.code.stabilizer_matrix,
-                error_channel = error_channel,
-                max_iter=self._max_bp_iter,
-                bp_method=self._bp_method,
-                ms_scaling_factor=0.,
-                lsd_method="lsd_cs",  # Choose from: "lsd_e", "lsd_cs", "lsd_0"
-                lsd_order=self._osd_order
-            )
+            raise ValueError("Gaussian decoder should be CSS.")
+        
         self._initialized = True
     
 
@@ -217,10 +213,12 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
         pi, px, py, pz = self.get_probabilities()
 
-        std = self.error_model.std
-        Delta_m_arr = self.error_model.Delta_m_arr
-        probabilities_z = np.zeros(self.code.n)
-        probabilities_x = get_error_channel(std, Delta_m_arr)
+        std_X = self.error_model.std_X
+        std_Z = self.error_model.std_Z
+        Delta_X_m_arr = self.error_model.Delta_X_m_arr
+        Delta_Z_m_arr = self.error_model.Delta_Z_m_arr
+        probabilities_x = get_error_channel(std_X, Delta_X_m_arr)
+        probabilities_z = get_error_channel(std_Z, Delta_Z_m_arr)
 
         probabilities = np.hstack([probabilities_z, probabilities_x])
 
@@ -235,7 +233,6 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
             # Bayes update of the probability
             if self._channel_update:
-                print("UPDATE PROB")
                 new_x_probs = self.update_probabilities(
                     z_correction, px, py, pz, direction="z->x"
                 )

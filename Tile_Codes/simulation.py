@@ -1,23 +1,16 @@
 import tile_codes as tc
-from decoders import BeliefPropagationLSDDecoder
+from error_models import GaussPauliErrorModel
+from decoders import BeliefPropagationLSDDecoder, GaussBeliefPropagationLSDDecoder
 
-from upgrade_gauss import \
-    GaussPauliErrorModel_XZsampling,\
-    GaussPauliErrorModel_gaussfirst,\
-    GaussPauliErrorModel_uniformfirst,\
-    GaussBeliefPropagationLSDDecoder_XZsampling,\
-    GaussBeliefPropagationLSDDecoder_gaussfirst,\
-    GaussBeliefPropagationLSDDecoder_uniformfirst
-
+import itertools
 import os
 import argparse
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
 
-from typing import List, Type, Optional, Union
+from typing import List, Optional, Union
 from tqdm import tqdm # Progress bar
 
 from panqec.codes import StabilizerCode, Toric2DCode
@@ -51,50 +44,17 @@ def get_sim_name(
         Decoder to use for the simulation. Must be a subclass of PanQECs BaseDecoder.
     """
     ## Get code name
-    Code = sim_input["Code"]
-    code_name = Code.__name__
+    code = sim_input["Code"].__name__
     tc_len = len("TileCode")
-    if code_name == "Toric2DCode":
-        code_name = "toric"
-    elif code_name[:tc_len] == "TileCode":
-        code_name = "tc" + code_name[tc_len+1:tc_len+3] ######## MUST BE FIXED!!!!
+    if code == "Toric2DCode":
+        code = "toric"
+    elif code[:tc_len] == "TileCode":
+        code = code.replace("_", "") # Remove underscores for shorter name
+        code = "tc" + code[tc_len:] # Shorten TileCode to tc. Now: TileCode_B3_W6 -> tcB3W6
     
-    ## Get error model name
-    Error_Model = sim_input["Error_Model"]
-    error_model_name = Error_Model.__name__
-    if error_model_name == "PauliErrorModel":
-        error_model_name = "pauli"
-    elif error_model_name.startswith("Gauss"):
-        if error_model_name.endswith("XZsampling"):
-            error_end = "XZ"
-        elif error_model_name.endswith("gaussfirst"):
-            error_end = "gauss"
-        elif error_model_name.endswith("uniformfirst"):
-            error_end = "uni"
-        error_model_name = "Gpauli_" + error_end
-
-    ## Get decoder name
-    Decoder = sim_input["Decoder"]
-    decoder_name = Decoder.__name__
-    if decoder_name == "BeliefPropagationOSDDecoder":
-        decoder_name = "bposd"
-    elif decoder_name == "BeliefPropagationLSDDecoder":
-        decoder_name = "bplsd"    
-    elif decoder_name.startswith("Gauss"):
-        if decoder_name.endswith("XZsampling"):
-            decoder_end = "XZ"
-        elif decoder_name.endswith("gaussfirst"):
-            decoder_end = "gauss"
-        elif decoder_name.endswith("uniformfirst"):
-            decoder_end = "uni"
-        
-        gauss_bp_len = len("GaussBeliefPropagationLSDDecoder")
-        if decoder_name[:gauss_bp_len] == "GaussBeliefPropagationLSDDecoder":
-            decoder_start = "Gbplsd"
-        elif decoder_name[:gauss_bp_len] == "GaussBeliefPropagationOSDDecoder":
-            decoder_start = "Gbposd"
-        
-        decoder_name = decoder_start + "_" + decoder_end
+    ## Get error model and decoder names
+    error_model = sim_input["error_model"]
+    decoder = sim_input["decoder"]
     
     ## Get text for remaining parameters
     E_X, E_Y, E_Z = (sim_input["E_X"], sim_input["E_Y"], sim_input["E_Z"])
@@ -109,7 +69,7 @@ def get_sim_name(
     trials_text = f"t_{sim_input["n_trials"]}"
 
     ## Combine parameter strings into one string.
-    sim_name = f"{code_name}__{error_model_name}__{decoder_name}__{error_text}__{L_text}__{p_text}__{trials_text}"
+    sim_name = f"{code}__{error_model}__{decoder}__{error_text}__{L_text}__{p_text}__{trials_text}"
 
     return sim_name
 
@@ -138,18 +98,36 @@ def run_single_simulation(
     p_logarithmic : bool
         If True, p_values are distributed logarithmically instead of linearly.
     """
+    ## Extract and check validity of code
     Code = sim_input["Code"]
-    Error_Model = sim_input["Error_Model"]
-    Decoder = sim_input["Decoder"]
     try:
         assert issubclass(Code, StabilizerCode)
     except:
-        raise TypeError("Code must be a subclass of PanQEC's StabilizerCode.")
-    try:
-        assert issubclass(Decoder, BaseDecoder)
-    except:
-        raise TypeError("Decoder must be a subclass of PanQEC's BaseDecoder.")
+        raise TypeError(f"Code must be a subclass of PanQEC's StabilizerCode. Got {Code}")
+
+    ## Extract and check validity of error model and decoder
+    error_model_name = sim_input["error_model"]
+    decoder_name = sim_input["decoder"]
     
+    if error_model_name == "pauli":
+        Error_Model = PauliErrorModel
+        if decoder_name == "bposd":
+            Decoder = BeliefPropagationOSDDecoder
+        elif decoder_name == "bplsd":
+            Decoder = BeliefPropagationLSDDecoder
+        else:
+            raise ValueError(f"sim_input['decoder'] must be either 'bposd' or 'bplsd'. Got '{decoder_name}'.")
+    elif error_model_name == "gauss":
+        Error_Model = GaussPauliErrorModel
+        if decoder_name == "bposd":
+            raise NotImplementedError("Gaussian BPOSD not implemented.")
+        elif decoder_name == "bplsd":
+            Decoder = GaussBeliefPropagationLSDDecoder
+        else:
+            raise ValueError(f"sim_input['decoder'] must be either 'bposd' or 'bplsd'. Got '{decoder_name}'.")
+    else:
+        raise ValueError(f"sim_input['error_model'] must be either 'pauli' or 'gauss'. Got '{error_model_name}'.")
+
     ## Extract input parameters
     E_X, E_Y, E_Z = (sim_input["E_X"], sim_input["E_Y"], sim_input["E_Z"])
     p_min = sim_input["p_min"]
@@ -188,6 +166,7 @@ def run_single_simulation(
         for p in p_vals:
             p = float(p)
             decoder = Decoder(code, error_model, p)
+            
             dir_sim = DirectSimulation(code, error_model, decoder, p)
             batch_sim.append(dir_sim)
     
@@ -197,31 +176,34 @@ def run_single_simulation(
 
 
 def split_inputs(sim_inputs: dict):
+    # return sim_input_list
     varying_keys = []
-    value_len = []
+    varying_values = []
     fixed_keys = []
+    fixed_values = []
     for k, v in sim_inputs.items():
         if isinstance(v, list) and k != "L_vals":
             # Check if one of the inputs except L_vals is a list
             varying_keys.append(k)
-            value_len.append(len(v))
+            varying_values.append(v)
         else:
             fixed_keys.append(k)
+            fixed_values.append(v)
     
-    if len(set(value_len)) == 0:
+    sim_input_list = []
+    if len(varying_keys) == 0:
         # No varying inputs, so no splitting needed.
-        return [sim_inputs]
-    elif len(set(value_len)) == 1:
-        sim_input_list = []
-        for i in range(value_len[0]):
-            sim_input = dict()
-            for k in fixed_keys:
-                sim_input[k] = sim_inputs[k]
-            for k in varying_keys:
-                sim_input[k] = sim_inputs[k][i]
-            sim_input_list.append(sim_input)
+        sim_input_list.append(sim_inputs)
     else:
-        raise ValueError("All lists in sim_inputs (except L_vals) must be of equal length.")
+        # Get a list of all combinations of the varying parameters
+        varying_product = list(itertools.product(*varying_values))
+        for k_values in varying_product:
+            sim_input = dict()
+            for k, v in zip(varying_keys, k_values):
+                sim_input[k] = v
+            for k, v in zip(fixed_keys, fixed_values):
+                sim_input[k] = v
+            sim_input_list.append(sim_input)
     
     return sim_input_list
     
@@ -232,7 +214,7 @@ def run_simulations(
 ):
     sim_input_list = split_inputs(sim_inputs)
     n_sims = len(sim_input_list)
-    
+
     json_paths = []
     for i, sim_input in enumerate(sim_input_list):
         print(f"Running simulation {i+1}/{n_sims}:")
@@ -243,25 +225,16 @@ def run_simulations(
 
 
 def extract_data(
-        json_paths: Union[str, List[str]],
-        names: Optional[Union[str, List[str]]]
-):
-    try:
-        assert isinstance(json_paths, str) or isinstance(json_paths, list) # Check that json_paths is a string or list
-        assert (type(json_paths) == type(names)) # Check that json_paths and names are the same type.
-    except:
-        raise TypeError("json_paths and names must be of the same type: either a string or a list of strings.")
-    
+        json_paths: Union[str, List[str]]
+):  
     if isinstance(json_paths, str):
         json_paths = [json_paths]
-        names = [names]
     
     results_list = []
-    for json_path, name in zip(json_paths, names):
+    for json_path in json_paths:
         analysis = Analysis(json_path)
         analysis.calculate_sector_thresholds() # Necessary for p_est_X and p_est_Z to be available
         results_i = analysis.get_results()
-        results_i["name"] = name
         results_list.append(results_i)
     
     results = pd.concat(results_list, ignore_index=True)
@@ -270,26 +243,18 @@ def extract_data(
     if np.all(L_x == L_y):
         results["L"] = L_x
     else:
-        results["L_x"] = L_x
-        results["L_y"] = L_y
-    
-    # ## Append pseudo threshold to end of dataframe
-    # p_vals = results["error_rate"].unique()
-    # k = results.loc[0, "k"]
-    # ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
-    # ps_th_dict = {
-    #     "error_rate": p_vals,
-    #     "p_est": ps_th, # Put it in p_est for seaborn-plotting to work
-    #     "name": "Pseudo Threshold",
-    #     "L": results["L"].min(),
-    # }
-    # ps_th_df = pd.DataFrame(ps_th_dict)
-    # results = pd.concat([results, ps_th_df])
+        raise NotImplementedError("Only the case when L_x = L_y is implemented.")
 
     return results
 
 
-def plot_results(data: pd.DataFrame, filename: str):
+def plot_results(
+        data: pd.DataFrame,
+        filename: str,
+        style: Optional[str] = None,
+        hue: Optional[str] = None,
+        col: Optional[str] = None
+):
     """
     Analyze output from a simulation, and create the threshold plots. The resulting plot is saved in the plot directory.
 
@@ -321,67 +286,55 @@ def plot_results(data: pd.DataFrame, filename: str):
 
     sns.set_theme()
 
-    L = None
-    if "L" in data.columns:
-        if len(data["L"].unique()) > 1:
-            L = "L"
-    else:
-        L = "L_x"
-    
-    name = None
-    if len(data["name"].unique()) > 1:
-        name = "name"
-
     ## Plot data
-    g = sns.relplot(data, kind="line", x="error_rate", y="p_est", hue=name, style=L)
-    
-    p_vals = data["error_rate"].unique()
-    k = data.loc[0, "k"]
-    ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
-    g.ax.plot(p_vals, ps_th, color="gray", linestyle="dashed")
-    g.ax.text(0.05, 0.7, "Pseudo Threshold\n(gray dashed line)", color="gray", rotation=45, transform=g.ax.transAxes)
+    g = sns.relplot(data, kind="line", x="error_rate", y="p_est", hue=hue, style=style, col=col)
 
+    cols = data[col].unique()
+
+    for i in range(len(cols)):
+        ## Plot pseudo threshold
+        ax = g.axes.flat[i]
+        filtered_data = data.loc[data[col] == cols[i]]
+        k = filtered_data["k"].iloc[0]
+        p_vals = filtered_data["error_rate"].unique()
+        ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
+        ax.plot(p_vals, ps_th, color="gray", linestyle="dashed")
+
+    g.figure.suptitle("Logical error rate $p_L$ as a function of physical error rate $p$. (Pseudo threshold in gray)")
     g.set(
-        title="Logical error rate $p_L$ as a function of physical error rate $p$. (Pseudo threshold in gray)",
         xlabel="Physical error rate $p$",
         ylabel="Logical error rate $p_L$"
     )
+    g.figure.tight_layout()
+
     g.savefig(plot_path, bbox_inches="tight")
+
+    return plot_path
 
 
 if __name__ == "__main__":
     ## Set simulation parameters
-    # Code = Toric2DCode
-    Code = tc.TileCode_B3_W6
-    Error_Models = [
-        PauliErrorModel,
-        GaussPauliErrorModel_XZsampling,
-        GaussPauliErrorModel_gaussfirst,
-        GaussPauliErrorModel_uniformfirst
+    Codes = [Toric2DCode, tc.TileCode_B3_W6]
+    error_models = [
+        "pauli",
+        "gauss"
     ]
-    Decoders = [
-        BeliefPropagationLSDDecoder,
-        GaussBeliefPropagationLSDDecoder_XZsampling,
-        GaussBeliefPropagationLSDDecoder_gaussfirst,
-        GaussBeliefPropagationLSDDecoder_uniformfirst
-    ]
+    decoders = "bplsd"
     sim_inputs = {
-        "Code": Code,
-        "Error_Model": Error_Models,
-        "Decoder": Decoders,
-        "E_X": 0.3,
-        "E_Y": 0.2,
+        "Code": Codes,
+        "error_model": error_models,
+        "decoder": decoders,
+        "E_X": 0.5,
+        "E_Y": 0.0,
         "E_Z": 0.5,
         "p_min": 0.001,
         "p_max": 0.5,
-        "n_p": 5,
+        "n_p": 20,
         "L_vals": [8, 12, 16],
-        "n_trials": 10
+        "n_trials": 500
     }
 
     # Run and analyze simulation
-    names = ["Pauli", "XZ sampling", "Gauss first", "Uniform first"]
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--overwrite", help="Run new simulations, overwriting any existing JSON files without asking.", action="store_true")
     parser.add_argument("-k", "--keep", help="Don't run new simulations for already existing JSON files.", action="store_true")
@@ -391,6 +344,8 @@ if __name__ == "__main__":
 
     json_paths = run_simulations(sim_inputs)
     
-    filename = "gauss_test_tilecode"
-    data = extract_data(json_paths, names)
-    plot_results(data, filename)
+    filename = "gauss_test_new"
+    data = extract_data(json_paths)
+    plot_path = plot_results(data, filename, style="L", hue="error_model", col="code")
+
+    print(f"Results plotted in {plot_path}")
