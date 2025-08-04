@@ -247,8 +247,7 @@ class GaussBeliefPropagationLSDDecoder(BeliefPropagationLSDDecoder):
 
             correction = np.concatenate([x_correction, z_correction])
         else:
-            # Update probabilities (in case the distribution is new at each
-            # iteration)
+            # Update probabilities (in case the distribution is new at each iteration)
             self.decoder.update_channel_probs(probabilities)
 
             # Decode all errors

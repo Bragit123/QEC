@@ -232,7 +232,7 @@ def plot_error_rates():
             p_error = np.sum(p_ixyz[1:])
             p_computed[r_ind, row] = p_error
 
-    # create 3x1 subfigs
+    # create 4x1 subfigs
     plt.style.use("seaborn-v0_8")
     fig = plt.figure(constrained_layout=True)
     fig.suptitle(f"Comparison of input and output of $p$ and $r$ for {Err_mod.__name__}")
