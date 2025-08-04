@@ -414,7 +414,8 @@ class Simulation:
             ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
             ax.plot(p_vals, ps_th, color="gray", linestyle="dashed")
 
-        g.figure.suptitle("Logical error rate $p_L$ as a function of physical error rate $p$. (Pseudo threshold in gray)")
+        suptitle = self.get_suptitle()
+        g.figure.suptitle(suptitle)
         g.set(
             xlabel="Physical error rate $p$",
             ylabel="Logical error rate $p_L$"
@@ -524,6 +525,56 @@ class Simulation:
             raise NotImplementedError("Only the case when L_x = L_y is implemented.")
 
         return results
+
+    def get_suptitle(self) -> str:
+        simulation_list = self.simulation_list
+        n_sims = len(simulation_list)
+
+        param_dict = {
+            "Code": [],
+            "error_model": [],
+            "decoder": [],
+            "r_xyz": [],
+            "n_p": [],
+            "n_trials": []
+        }
+        for i in range(n_sims):
+            single_sim = simulation_list[i]
+            param_dict["Code"].append(single_sim.Code)
+            param_dict["error_model"].append(single_sim.error_model)
+            param_dict["decoder"].append(single_sim.decoder)
+            param_dict["r_xyz"].append(single_sim.r_xyz)
+            param_dict["n_p"].append(len(single_sim.p_vals))
+            param_dict["n_trials"].append(single_sim.n_trials)
+        L_vals = single_sim.L_vals # L_vals are always equal for all single-simulations, so only need one.
+
+        identical_param = {}
+        if isinstance(L_vals, int):
+            identical_param["L"] = L_vals
+        else:
+            if len(L_vals) == 1:
+                identical_param["L"] = L_vals[0]
+            
+        for key, value in param_dict.items():
+            print(key, value)
+            if key == "r_xyz":
+                # Check if all lists are the same (cannot use set()) on nested list, so handled separately
+                same = [value[i]==value[i+1] for i in range(len(value)-1)]
+                if all(same):
+                    identical_param[key] = value[0]
+            elif len(set(value)) == 1:
+                # Check if all values are the same
+                if key == "Code":
+                    identical_param[key] = value[0].__name__
+                else:
+                    identical_param[key] = value[0]
+        
+        suptitle = "QEC Simulation"
+        for key, value in identical_param.items():
+            suptitle += f" | {key}={value}"
+        suptitle += " | (Pseudo threshold in gray)"
+        
+        return suptitle
     
 
 if __name__ == "__main__":

@@ -32,7 +32,7 @@ error_models = ["pauli", "gauss"]
 decoders = "bplsd"
 r_xyz = [0.5, 0.0, 0.5]
 p_vals = np.linspace(0.001, 0.5, 20)
-L_vals = [8, 16]
+L_vals = [8, 12, 16]
 n_trials = 500
 sim_inputs = {
     "Codes": Codes,
@@ -44,7 +44,7 @@ sim_inputs = {
     "n_trials": n_trials
 }
 
-plot_filename = "gauss_test"
+plot_filename = "toric_tc_pauli_gauss"
 
 # Run and analyze simulation
 sim = Simulation(
