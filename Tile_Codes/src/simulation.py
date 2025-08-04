@@ -414,7 +414,7 @@ class Simulation:
             ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
             ax.plot(p_vals, ps_th, color="gray", linestyle="dashed")
 
-        suptitle = self.get_suptitle()
+        suptitle = self._get_suptitle()
         g.figure.suptitle(suptitle)
         g.set(
             xlabel="Physical error rate $p$",
@@ -526,7 +526,19 @@ class Simulation:
 
         return results
 
-    def get_suptitle(self) -> str:
+    def _get_suptitle(self) -> str:
+        """
+        Checks what parameters are the same across all simulations, and returns
+        a super title for the resulting plot that contains all this information.
+        Parameters that are different for different simulations are not included
+        in the super title, as these will typically be differentiated in the
+        plot by linestyle, color, etc.
+        
+        Returns
+        -------
+        str
+            Super title for the resulting plot from the simulations.
+        """
         simulation_list = self.simulation_list
         n_sims = len(simulation_list)
 

@@ -33,7 +33,7 @@ decoders = "bplsd"
 r_xyz = [0.5, 0.0, 0.5]
 p_vals = np.linspace(0.001, 0.5, 20)
 L_vals = [8, 12, 16]
-n_trials = 500
+n_trials = 1000
 sim_inputs = {
     "Codes": Codes,
     "error_models": error_models,
