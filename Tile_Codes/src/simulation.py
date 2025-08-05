@@ -409,10 +409,18 @@ class Simulation:
             ## Plot pseudo threshold
             ax = g.axes.flat[i]
             filtered_data = data.loc[data[col] == cols[i]]
-            k = filtered_data["k"].iloc[0]
+            k_vals = filtered_data["k"].unique()
             p_vals = filtered_data["error_rate"].unique()
-            ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
-            ax.plot(p_vals, ps_th, color="gray", linestyle="dashed")
+            for k in k_vals:
+                ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
+                ax.plot(p_vals, ps_th, color="gray", linestyle="dashed", label=f"k={k}")
+                half_ind = len(p_vals) // 5
+                ax.text(
+                    p_vals[half_ind], ps_th[half_ind], f"k={k}",
+                    rotation=30,
+                    color="gray",
+                    ha="right", va="bottom"
+                )
 
         suptitle = self._get_suptitle()
         g.figure.suptitle(suptitle)
@@ -568,7 +576,6 @@ class Simulation:
                 identical_param["L"] = L_vals[0]
             
         for key, value in param_dict.items():
-            print(key, value)
             if key == "r_xyz":
                 # Check if all lists are the same (cannot use set()) on nested list, so handled separately
                 same = [value[i]==value[i+1] for i in range(len(value)-1)]
@@ -587,52 +594,3 @@ class Simulation:
         suptitle += " | (Pseudo threshold in gray)"
         
         return suptitle
-    
-
-if __name__ == "__main__":
-    ## Set simulation parameters
-    Codes = [Toric2DCode, tc.TileCode_B3_W6]
-    error_models = [
-        "pauli",
-        "gauss"
-    ]
-    decoders = ["bplsd"]
-    p_vals = np.linspace(0.001, 0.5, 5)
-    sim_inputs = {
-        "Codes": Codes,
-        "error_models": error_models,
-        "decoders": decoders,
-        "r_xyz": [0.5, 0.0, 0.5],
-        "p_vals": p_vals,
-        "L_vals": [8, 16],
-        "n_trials": 10
-    }
-
-    # Run and analyze simulation
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--overwrite", help="Run new simulations, overwriting any existing JSON files without asking.", action="store_true")
-    parser.add_argument("-k", "--keep", help="Don't run new simulations for already existing JSON files.", action="store_true")
-    args = parser.parse_args()
-
-    if args.overwrite and not args.keep:
-        existing_json_handling = "overwrite"
-    elif args.keep and not args.overwrite:
-        existing_json_handling = "keep"
-    else:
-        if args.keep and args.overwrite:
-            print("WARNING: Cannot both overwrite and keep JSON files. Reverting back to asking at each JSON file.")
-        existing_json_handling = "ask"
-
-    sim = Simulation(
-        **sim_inputs,
-        output_dir="./",
-        plot_dir="./",
-        existing_json_handling=existing_json_handling
-    )
-    
-    json_paths = sim.run_simulations()
-    
-    filename = "gauss_test"
-    plot_path = sim.plot_results(filename, style="L", hue="error_model", col="code")
-
-    print(f"Results plotted in {plot_path}")
