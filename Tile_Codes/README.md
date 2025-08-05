@@ -3,6 +3,8 @@ My implementation of [Tile Codes](https://arxiv.org/abs/2504.09171) using [PanQE
 
 To see an example on how to run simulations, see *main.py*. If there is already a JSON file with results for the given parameters you will be asked whether you want to keep the existing JSON file, or run a new simulation overwriting the existing data. You can also add the -k (--keep) or -o (--overwrite) arguments when running the script to stop the code from asking at each simulation. More info about these is given by running `python3 main.py --help`.
 
+To run the PanQEC GUI for Tile Codes, run the *run_gui.py* script.
+
 The necessary code for running simulations is found in the *src* folder. It contains the following python scripts:
 - *tile_codes.py*: Contains classes for using Tile Codes with PanQEC. The abstract class *TileCode* inherits from PanQEC's *StabilizerCode*, and contains what is common for all Tile Codes, independent of layout. It also contains a few instances of specific layouts.
 - *error_models.py*: Contains the class *GaussPauliErrorModel*, which inherits from PanQEC's *PauliErrorModel*, but uses Gaussian sampling to draw generate errors (see the following paper on [analog QEC](https://arxiv.org/abs/1706.03011)).

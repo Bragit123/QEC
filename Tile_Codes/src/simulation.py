@@ -4,7 +4,6 @@ from .decoders import BeliefPropagationLSDDecoder, GaussBeliefPropagationLSDDeco
 
 import itertools
 import os
-import argparse
 
 import numpy as np
 import pandas as pd
@@ -347,6 +346,8 @@ class Simulation:
         List[str]
             List of paths to the JSON files where the output from each simulation is stored.
         """
+        for i, single_sim in enumerate(self.simulation_list):
+            single_sim.
         n_sims = len(self.simulation_list)
         json_paths = []
         for i, single_sim in enumerate(self.simulation_list):

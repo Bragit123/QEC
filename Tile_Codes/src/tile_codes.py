@@ -2,8 +2,8 @@ import numpy as np
 import json
 from abc import abstractmethod
 from panqec.codes import StabilizerCode
-from panqec.gui import GUI
 from bposd.css import css_code
+from pathlib import Path
 
 type Coordinate = tuple[int]
 
@@ -62,7 +62,9 @@ class TileCode(StabilizerCode):
     @property
     def json_file(self) -> str:
         """ Path to JSON file for GUI visualization. """
-        return "gui_config_tile_codes.json"
+        src_path = Path(__file__).parent.absolute()
+        gui_config_path = src_path / "gui_config_tile_codes.json"
+        return gui_config_path
 
     @property
     def label(self) -> str:
@@ -335,14 +337,3 @@ class TileCode_B4_W8(TileCode):
         (1,6),
         (6,7)
     ]
-
-
-##### Run the GUI if __main__
-
-if __name__ == "__main__":
-    gui = GUI()
-    gui.add_code(TileCode_Planar, "Tile Code: 'Planar'")
-    gui.add_code(TileCode_B3_W6, "Tile Code: B=3, W=6")
-    gui.add_code(TileCode_B3_W8, "Tile Code: B=3, W=8")
-    gui.add_code(TileCode_B4_W8, "Tile Code: B=4, W=8")
-    gui.run(port=5000)
