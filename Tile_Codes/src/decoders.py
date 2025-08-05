@@ -4,7 +4,6 @@ from ldpc.bplsd_decoder import BpLsdDecoder
 from panqec.decoders import BeliefPropagationOSDDecoder
 
 import numpy as np
-from colorama import Back, Style
 
 
 def gauss_likelihood(std:float) -> Callable[[float], float]:
@@ -140,8 +139,7 @@ class BeliefPropagationLSDDecoder(BeliefPropagationOSDDecoder):
 
             correction = np.concatenate([x_correction, z_correction])
         else:
-            # Update probabilities (in case the distribution is new at each
-            # iteration)
+            # Update probabilities (in case the distribution is new at each iteration)
             self.decoder.update_channel_probs(probabilities)
 
             # Decode all errors
