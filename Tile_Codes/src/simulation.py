@@ -346,8 +346,6 @@ class Simulation:
         List[str]
             List of paths to the JSON files where the output from each simulation is stored.
         """
-        for i, single_sim in enumerate(self.simulation_list):
-            single_sim.
         n_sims = len(self.simulation_list)
         json_paths = []
         for i, single_sim in enumerate(self.simulation_list):
@@ -364,7 +362,8 @@ class Simulation:
             filename: str,
             style: Optional[str] = None,
             hue: Optional[str] = None,
-            col: Optional[str] = None
+            col: Optional[str] = None,
+            multiply_k: Optional[int] = None
     ) -> str:
         """
         Analyze output from a simulation, and create the threshold plots. The resulting
@@ -386,6 +385,14 @@ class Simulation:
             Column label of the data that should decide the columns of the subplots
             in the plot. If None: the plot is not divided into subplots.
             See the Seaborn documentation for more information.
+        multiply_k = int or None
+            Number to multiply the smallest logical qubit number k of the data with.
+            This is used to compare codes with different number of logical qubits.
+            For instance: Toric2D has k=2 and TileCode_B3_W6 has 8. To compare the
+            codes at the same number of logical qubits we need to imagine that we
+            have four toric codes so that they have 8 logical qubits in total.
+            This is a shortcut to "simulating" multiple toric codes. The new logical
+            error rate p_est is then 1-(1-p)^multiply_k.
         
         Returns
         -------
@@ -401,27 +408,58 @@ class Simulation:
 
         sns.set_theme()
 
+        row=None
+        if multiply_k is not None:
+            data["n_smallest_code"] = 1
+            data_copy = data.copy()
+            data_copy["n_smallest_code"] = multiply_k
+            row = "n_smallest_code"
+
+            k_vals = data_copy["k"].unique()
+            k_min = data_copy["k"].min()
+            new_k = k_min * multiply_k
+
+            data_copy.loc[data["k"] == k_min, "k"] = new_k
+            p_est_kmin = data_copy.loc[data["k"] == k_min, "p_est"]
+            p_est_new = 1 - (1-p_est_kmin)**multiply_k
+            data_copy.loc[data["k"] == k_min, "p_est"] = p_est_new
+            
+            data = pd.concat([data, data_copy], ignore_index=True)
+                    
+
         ## Plot data
-        g = sns.relplot(data, kind="line", x="error_rate", y="p_est", hue=hue, style=style, col=col)
+        g = sns.relplot(data, kind="line", x="error_rate", y="p_est", hue=hue, style=style, col=col, row=row)
 
-        cols = data[col].unique()
+        if col == None:
+            data[col] = 0
+            cols = [0]
+        else:
+            cols = data[col].unique()
 
-        for i in range(len(cols)):
-            ## Plot pseudo threshold
-            ax = g.axes.flat[i]
-            filtered_data = data.loc[data[col] == cols[i]]
-            k_vals = filtered_data["k"].unique()
-            p_vals = filtered_data["error_rate"].unique()
-            for k in k_vals:
-                ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
-                ax.plot(p_vals, ps_th, color="gray", linestyle="dashed", label=f"k={k}")
-                half_ind = len(p_vals) // 5
-                ax.text(
-                    p_vals[half_ind], ps_th[half_ind], f"k={k}",
-                    rotation=30,
-                    color="gray",
-                    ha="right", va="bottom"
-                )
+        if row == None:
+            data[row] = 0
+            rows = [0]
+        else:
+            rows = data[row].unique()
+
+        for r in range(len(rows)):
+            for c in range(len(cols)):
+                ## Plot pseudo threshold
+                flat_ind = r*len(rows) + c
+                ax = g.axes.flat[flat_ind]
+                filtered_data = data.loc[(data[col] == cols[c]) & (data[row] == rows[r])]
+                k_vals = filtered_data["k"].unique()
+                p_vals = filtered_data["error_rate"].unique()
+                for k in k_vals:
+                    ps_th = 1.0 - (1.0 - p_vals)**k # Pseudo threshold
+                    ax.plot(p_vals, ps_th, color="gray", linestyle="dashed", label=f"k={k}")
+                    half_ind = len(p_vals) // 5
+                    ax.text(
+                        p_vals[half_ind], ps_th[half_ind], f"k={k}",
+                        rotation=30,
+                        color="gray",
+                        ha="right", va="bottom"
+                    )
 
         suptitle = self._get_suptitle()
         g.figure.suptitle(suptitle)

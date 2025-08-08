@@ -44,7 +44,7 @@ sim_inputs = {
     "n_trials": n_trials
 }
 
-plot_filename = "pauli_gauss_comparison"
+plot_filename = "pauli_gauss_comparison_4torics"
 
 # Run and analyze simulation
 sim = Simulation(
@@ -58,10 +58,11 @@ sim.run_simulations()
 plot_path = sim.plot_results(
     filename=plot_filename,
     style="L",
-    hue="error_model",
-    col="code"
-    # hue="code",
-    # col="error_model"
+    hue="code",
+    col="error_model",
+    # hue="error_model",
+    # col="code",
+    multiply_k=4
 )
 
 print(f"Results plotted in {plot_path}")
