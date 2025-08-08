@@ -363,7 +363,8 @@ class Simulation:
             style: Optional[str] = None,
             hue: Optional[str] = None,
             col: Optional[str] = None,
-            multiply_k: Optional[int] = None
+            multiply_k: Optional[int] = None,
+            filter_data: bool = False
     ) -> str:
         """
         Analyze output from a simulation, and create the threshold plots. The resulting
@@ -393,6 +394,12 @@ class Simulation:
             have four toric codes so that they have 8 logical qubits in total.
             This is a shortcut to "simulating" multiple toric codes. The new logical
             error rate p_est is then 1-(1-p)^multiply_k.
+        filter_data = bool
+            If True, filters the data before plotting so that the plot only shows
+            the lowest L value for the code that is multiplied by multiply_k, and the
+            highest L for the code that is not multiplied. If set to False, or if
+            multiply_k is None, the data is plotted as usual, including all L values
+            for all codes.
         
         Returns
         -------
@@ -410,22 +417,36 @@ class Simulation:
 
         row=None
         if multiply_k is not None:
+            if filter_data:
+                L_vals = data["L"].unique()
+                k_vals = data["k"].unique()
+                k_min = data["k"].min()
+                k_max = data["k"].max()
+                L_max = L_vals.max()
+                L_min = L_vals.min()
+                data = data.loc[((data["k"] == k_min) & (data["L"] == L_min)) | ((data["k"] == k_max) & (data["L"] == L_max))]
+            
             data["n_smallest_code"] = 1
             data_copy = data.copy()
             data_copy["n_smallest_code"] = multiply_k
             row = "n_smallest_code"
 
             k_vals = data_copy["k"].unique()
-            k_min = data_copy["k"].min()
+            if len(k_vals) != 2:
+                print(f"WARNING: Number of k_vals in simulation: {len(k_vals)}. Should be 2.")
+            k_min = k_vals.min()
+            k_max = k_vals.max()
             new_k = k_min * multiply_k
+            if new_k != k_max:
+                print(f"WARNING: multiply_k does not give the same number of logical qubits for the two codes: k_max={k_max} | new_k={new_k}")
 
-            data_copy.loc[data["k"] == k_min, "k"] = new_k
-            p_est_kmin = data_copy.loc[data["k"] == k_min, "p_est"]
+            data_copy.loc[data_copy["k"] == k_min, "k"] = new_k
+            p_est_kmin = data_copy.loc[data_copy["k"] == k_min, "p_est"]
             p_est_new = 1 - (1-p_est_kmin)**multiply_k
-            data_copy.loc[data["k"] == k_min, "p_est"] = p_est_new
+            data_copy.loc[data_copy["k"] == k_min, "p_est"] = p_est_new
             
             data = pd.concat([data, data_copy], ignore_index=True)
-                    
+
 
         ## Plot data
         g = sns.relplot(data, kind="line", x="error_rate", y="p_est", hue=hue, style=style, col=col, row=row)
@@ -445,7 +466,10 @@ class Simulation:
         for r in range(len(rows)):
             for c in range(len(cols)):
                 ## Plot pseudo threshold
-                flat_ind = r*len(rows) + c
+                if len(cols) == 1:
+                    flat_ind = r
+                else:
+                    flat_ind = r*len(rows) + c
                 ax = g.axes.flat[flat_ind]
                 filtered_data = data.loc[(data[col] == cols[c]) & (data[row] == rows[r])]
                 k_vals = filtered_data["k"].unique()

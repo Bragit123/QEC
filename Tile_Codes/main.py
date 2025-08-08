@@ -28,12 +28,14 @@ elif args.keep and args.overwrite:
 
 ## Set simulation parameters
 Codes = [Toric2DCode, tc.TileCode_B3_W6]
-error_models = ["pauli", "gauss"]
+# error_models = ["pauli", "gauss"]
+error_models = "gauss"
 decoders = "bplsd"
 r_xyz = [0.5, 0.0, 0.5]
-p_vals = np.linspace(0.001, 0.5, 20)
-L_vals = [8, 12, 16]
-n_trials = 1000
+p_vals = np.linspace(0.001, 0.5, 10)
+# L_vals = [8, 12, 16]
+L_vals = [16, 32]
+n_trials = 300
 sim_inputs = {
     "Codes": Codes,
     "error_models": error_models,
@@ -44,7 +46,7 @@ sim_inputs = {
     "n_trials": n_trials
 }
 
-plot_filename = "pauli_gauss_comparison_4torics"
+plot_filename = "pauli_gauss_comparison_large_4torics"
 
 # Run and analyze simulation
 sim = Simulation(
@@ -62,7 +64,8 @@ plot_path = sim.plot_results(
     col="error_model",
     # hue="error_model",
     # col="code",
-    multiply_k=4
+    multiply_k=4,
+    filter_data=False
 )
 
 print(f"Results plotted in {plot_path}")
