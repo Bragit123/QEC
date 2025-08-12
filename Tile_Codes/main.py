@@ -27,7 +27,10 @@ elif args.keep and args.overwrite:
             
 
 ## Set simulation parameters
-Codes = [Toric2DCode, tc.TileCode_B3_W6]
+# Codes = [Toric2DCode, tc.TileCode_B3_W6]
+# Codes = [Toric2DCode, tc.TileCode_B4_W8]
+Codes = [tc.TileCode_B3_W6, tc.TileCode_B4_W8]
+# Codes = [Toric2DCode, tc.TileCode_B3_W6, tc.TileCode_B4_W8]
 # error_models = ["pauli", "gauss"]
 error_models = "gauss"
 decoders = "bplsd"
@@ -46,7 +49,7 @@ sim_inputs = {
     "n_trials": n_trials
 }
 
-plot_filename = "pauli_gauss_comparison_large_4torics"
+plot_filename = "tcB3W6_tcB4W8_comparison_large_2B3"
 
 # Run and analyze simulation
 sim = Simulation(
@@ -64,7 +67,9 @@ plot_path = sim.plot_results(
     col="error_model",
     # hue="error_model",
     # col="code",
-    multiply_k=4,
+    multiply_k=2, # When comparing toric to tcB3W6
+    # multiply_k=4, # When comparing toric to tcB3W6
+    # multiply_k=9, # When comparing toric to tcB4W8
     filter_data=False
 )
 

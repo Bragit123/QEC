@@ -174,12 +174,13 @@ def plot_error_rates():
     from panqec.bpauli import bsf_to_pauli
 
     Err_mod = GaussPauliErrorModel
-    r_names = ["Only X", "Only Z", "50/50 X/Z", "20/80 X/Z"]
+    r_names = ["Only X", "Only Z", "50/50 X/Z", "20/80 X/Z", "33/33/33 X/Y/Z"]
     rs = [
         [1.0, 0.0, 0.0],
         [0.0, 0.0, 1.0],
         [0.5, 0.0, 0.5],
-        [0.2, 0.0, 0.8]
+        [0.2, 0.0, 0.8],
+        [1/3, 1/3, 1/3]
     ]
     n_r = len(rs)
 
@@ -277,7 +278,7 @@ def plot_error_rates():
             axs[2].legend()
 
     fig.supxlabel("Error rate input $p_{in}$")
-    fig.savefig("../Plots/gauss_error_test.pdf", bbox_inches="tight")
+    fig.savefig("Plots/gauss_error_test.pdf", bbox_inches="tight")
 
 
 if __name__ == "__main__":
