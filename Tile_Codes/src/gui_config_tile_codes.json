@@ -53,7 +53,7 @@
                 "vertex": {
                     "object": "sphere",
                     "color": {
-                        "activated": "gold",
+                        "activated": "blue",
                         "deactivated": "white"
                     },
                     "opacity": {
